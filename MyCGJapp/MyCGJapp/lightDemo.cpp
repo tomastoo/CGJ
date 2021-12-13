@@ -41,7 +41,7 @@ int WindowHandle = 0;
 int WinX = 1024, WinY = 768;
 
 unsigned int FrameCount = 0;
-int cam = 1;
+int cam = 3;
 //shaders
 VSShaderLib shader;  //geometry
 VSShaderLib shaderText;  //render bitmap text
@@ -70,13 +70,14 @@ GLint tex_loc, tex_loc1, tex_loc2;
 // Camera Position
 float camX, camY, camZ;
 
-float lookAtX, lookAtY, lookAtZ = 0.0f;
+//float lookAtX, lookAtY, lookAtZ = 0.0f;
 
 // Mouse Tracking Variables
 int startX, startY, tracking = 0;
 
 // Camera Spherical Coordinates
-float alpha = 39.0f, beta = 51.0f;
+float alpha = -90.0f, beta = 0.0f;
+
 float r = 10.0f;
 
 // Frame counting and FPS computation
@@ -102,6 +103,11 @@ class Car {
 };
 
 Car car;
+
+float lookAtX = car.position[0];
+float lookAtY = car.position[1];
+float lookAtZ = car.position[2];
+
 
 void timer(int value)
 {
@@ -143,8 +149,6 @@ void changeSize(int w, int h) {
 void cam1() {
 	// Ortogonal Projection Top View Cam
 	// set the camera position based on its spherical coordinates
-	alpha = 0.0f;
-	beta = 90.0f;
 	camX = r * sin(alpha * 3.14f / 180.0f) * cos(beta * 3.14f / 180.0f) + 50;
 	camZ = r * cos(alpha * 3.14f / 180.0f) * cos(beta * 3.14f / 180.0f) + 50;
 	camY = 110;
@@ -154,10 +158,10 @@ void cam1() {
 	lookAtZ = 50.0f;
 	cam = 1;
 };
+
 void cam2() {
 	//Prespective Top View Cam
-	alpha = 0.0f;
-	beta = 90.0f;
+
 	camX = r * sin(alpha * 3.14f / 180.0f) * cos(beta * 3.14f / 180.0f) + 50;
 	camZ = r * cos(alpha * 3.14f / 180.0f) * cos(beta * 3.14f / 180.0f) + 50;
 	camY = 110;
@@ -173,7 +177,6 @@ void cam2() {
 void cam3() {
 	// prespective Car Cam
 	// this values rotate the cam in x z WC
- 	alpha = -90.0f, beta = 0.0f;
 	//inclination 'i' of camera from above
 	//  cam
 	//      \
@@ -376,16 +379,23 @@ void processKeys(unsigned char key, int xx, int yy)
 		case 'm': glEnable(GL_MULTISAMPLE); break;
 		case 'n': glDisable(GL_MULTISAMPLE); break;
 		case '1': 
+			alpha = 0.0f;
+			beta = 90.0f;
 			cout << "tecla carregada = " << key;
 			cam1();
 			break;
 		case '2': 
+			alpha = 0.0f;
+			beta = 90.0f;
 			cout << "tecla carregada = " << key;
 			cam2();
 			break;
 		case '3': 
 			cout << "tecla carregada = " << key;
+			//ESTA ATRIBUICAO DE VALORES E FEITA AQUI POR CAUSA TO MOVIMENTO DE CAMERA ATRAVES DO RATO
+			alpha = -90.0f, beta = 0.0f;
 			cam3();
+
 			break;
 		default:
 			cout << "tecla carregada = " << key;
@@ -420,10 +430,10 @@ void processMouseButtons(int button, int state, int xx, int yy)
 			beta += (yy - startY);
 		}
 		else if (tracking == 2) {
-			r += (yy - startY) * 0.01f;
+	/*		r += (yy - startY) * 0.01f;
 			if (r < 0.1f)
 				r = 0.1f;
-		}
+	*/	}
 		tracking = 0;
 	}
 }
@@ -436,9 +446,9 @@ void processMouseMotion(int xx, int yy)
 	int deltaX, deltaY;
 	float alphaAux, betaAux;
 	float rAux;
-
-	deltaX =  - xx + startX;
-	deltaY =    yy - startY;
+	float slowDown = 0.2f;
+	deltaX =  (- xx + startX) * slowDown;
+	deltaY =  (  yy - startY) * slowDown;
 
 	// left mouse button: move camera
 	if (tracking == 1) {
@@ -465,17 +475,21 @@ void processMouseMotion(int xx, int yy)
 	
 	switch (cam) {
 	case 1:
-		//cam1();
+		alpha = alphaAux;
+		beta = betaAux;
+		cam1();
 		break;
 	case 2:
-		//cam2();
+		alpha = alphaAux;
+		beta = betaAux;
+		cam2();
 		break;
 	case 3:
-		float inclination = 55.f;
-		float hight = 10;
-		camX = r * sin(alphaAux * 3.14f / 180.0f) * cos(betaAux * 3.14f / 180.0f) + car.position[0];
-		camZ = r * cos(alphaAux * 3.14f / 180.0f) * cos(betaAux * 3.14f / 180.0f) + car.position[2];
-		camY = r * sin(inclination * 3.14f / 180.0f) + hight;
+		//float inclination = 55.f;
+		//float hight = 10;
+		alpha = alphaAux;
+		beta = betaAux;
+		cam3();
 		break;
 	}
 	//camX = rAux * sin(alphaAux * 3.14f / 180.0f) * cos(betaAux * 3.14f / 180.0f);
