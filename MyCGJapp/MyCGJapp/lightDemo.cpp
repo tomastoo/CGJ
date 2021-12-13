@@ -85,6 +85,11 @@ long myTime,timebase = 0,frame = 0;
 char s[32];
 float lightPos[4] = {4.0f, 6.0f, 2.0f, 1.0f};
 
+float tableX = 100;
+float tableY = 0.5;
+float tableZ = 100;
+
+
 class Car {
 	public:
 		float position[3] = { 0.0f, 0.0f, 0.0f };
@@ -102,7 +107,78 @@ class Car {
 		}
 };
 
+class Orange{
+public:
+	const float velocityIncrease = 0.008f;
+	const float veloctityIntervalIncrease = 0.001;
+	float maxVelocity = 0.1f;
+	float minVelocity = 0.01f;
+	float position[3] = { 0.0f, 1.5f, 0.0f };
+	float velocity;
+	float direction[3] = { 1.0f, 0.0f, 0.0f };
+	float rotationAngle = 0;
+
+	Orange() {
+		// set position random
+		reset();
+	};
+	
+	void move() {
+		position[0] += direction[0] * velocity;
+		position[1] += direction[1] * velocity;
+		position[2] += direction[2] * velocity;
+	};
+
+	void roll() {
+		rotationAngle = velocity * 10;
+	}
+
+	//given a certain table size 
+	void randomPosition() {
+		position[0] = static_cast <float> (rand()) / (static_cast <float> (RAND_MAX / tableX));
+		position[2] = static_cast <float> (rand()) / (static_cast <float> (RAND_MAX / tableZ));
+	}
+
+	bool isOnTable() {
+		if (position[0] > tableX || position[0] < 0) 
+			return false;
+		
+		if (position[2] > tableZ || position[0] < 0)
+			return false;
+
+		return true;
+	}
+
+	void randomDirection() {
+		direction[0] = static_cast <float> (rand()) / static_cast <float> (RAND_MAX);
+		direction[2] = static_cast <float> (rand()) / static_cast <float> (RAND_MAX);
+	}
+
+	void randomVelocity() {
+		velocity = minVelocity + static_cast <float> (rand()) / (static_cast <float> (RAND_MAX / (maxVelocity - minVelocity)));
+	}
+
+	void reset() {
+		randomPosition();
+		randomDirection();
+		randomVelocity();
+	}
+
+	void accelerate() {
+		//new max and min velocity
+		minVelocity += veloctityIntervalIncrease;
+		maxVelocity += veloctityIntervalIncrease;
+
+		//acceleration part
+		velocity += velocityIncrease;
+		if (velocity > maxVelocity) {
+			velocity = maxVelocity;
+		}
+	}
+};
+
 Car car;
+Orange orange;
 
 float lookAtX = car.position[0];
 float lookAtY = car.position[1];
@@ -253,7 +329,7 @@ void renderScene(void) {
 			case 0:
 				//table
 				translate(MODEL, 0.0f, 0.0f, 0.0f);
-				scale(MODEL, 100, 0.5, 100);
+				scale(MODEL, tableX, tableY, tableZ);
 				break;
 			case 1:
 				//road
@@ -262,7 +338,14 @@ void renderScene(void) {
 				break;
 			case 2:
 				//orange
-				translate(MODEL, 20.0f, 1.5f, 20.0f);
+				orange.move();
+				if (!orange.isOnTable()) {
+					orange.reset();
+				}
+				translate(MODEL, orange.position[0], orange.position[1], orange.position[2]);
+				orange.roll();
+				rotate(MODEL, orange.rotationAngle, orange.direction[0], orange.direction[1], orange.direction[2]);
+				orange.accelerate();
 				break;
 			case 3:
 				//car wheel torus RIGHT TOP
@@ -564,6 +647,8 @@ GLuint setupShaders() {
 
 void init()
 {
+	srand(static_cast <unsigned> (time(0)));
+
 	MyMesh amesh;
 
 	/* Initialization of DevIL */
@@ -695,6 +780,7 @@ void init()
 	glEnable(GL_CULL_FACE);
 	glEnable(GL_MULTISAMPLE);
 	glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
+
 
 }
 
