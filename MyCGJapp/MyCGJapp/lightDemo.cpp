@@ -61,9 +61,10 @@ extern float mCompMatrix[COUNT_COMPUTED_MATRICES][16];
 /// The normal matrix
 extern float mNormal3x3[9];
 
-/// Array that holds state of keys
+/// Array of boolean values of length 256 (0-255)
 
 bool* keyStates = new bool[256];
+void keyOperations();
 
 GLint pvm_uniformId;
 GLint vm_uniformId;
@@ -92,7 +93,7 @@ class Car {
 	public:
 		float position[3] = { 0.0f, 0.0f, 41.0f };
 		float velocity = 0.00f;
-		float maxVelocity = 0.50f;
+		float maxVelocity = 0.2f;
 		float direction[3] = { 0.0f, 0.0f, 0.0f };
 
 		Car() {};
@@ -205,6 +206,7 @@ void cam3() {
 
 void renderScene(void) {
 
+	keyOperations();
 	GLint loc;
 	FrameCount++;
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
@@ -369,93 +371,81 @@ glutSwapBuffers();
 // Events from the Keyboard
 //
 
-void processKeys(unsigned char key, int xx, int yy)
-{
+void keyOperations() {
+
 	float forward[3] = { 1.0f, 0.0f, 0.0f };
 	float backward[3] = { -1.0f, 0.0f, 0.0f };
 	float left[3] = { 0.0f, 0.0f, -1.0f };
 	float right[3] = { 0.0f, 0.0f, 1.0f };
 
-
-	switch (key) {
-	case 27:
+	if (keyStates[27]) {
 		glutLeaveMainLoop();
-		break;
+	}
 
-	case 'c':
+	if (keyStates['c']){
 		printf("Camera Spherical Coordinates (%f, %f, %f)\n", alpha, beta, r);
-		break;
-	case 'm': glEnable(GL_MULTISAMPLE); break;
-	case 'n': glDisable(GL_MULTISAMPLE); break;
-	case '1':
-		cout << "tecla carregada = " << key;
+		}
+
+	if (keyStates['1']){
 		cam1();
-		break;
-	case '2':
-		cout << "tecla carregada = " << key;
+	}
+
+	if (keyStates['2']) {
 		cam2();
-		break;
-	case '3':
-		cout << "tecla carregada = " << key;
+	}
+
+	if (keyStates['3']) {
 		cam3();
-		break;
-	case 'o':
-		//move left
-		car.velocity += 0.002;
-		car.move(left);
-		break;
-	case 'p':
-		//move right
-		car.velocity += 0.002;
-		car.move(right);
-		rotate(MODEL, 90.0f, 1.0f, 0.0f, 0.0f);
-		break;
-	case 'q':
+	}
+
+	if (keyStates['q']) {
 		//move forward
 		car.velocity += 0.0016;
 		if (car.velocity > car.maxVelocity) {
 			car.velocity = car.maxVelocity;
 		}
 		car.move(forward);
-		break;
-	case 'a':
+	}
+
+	if (keyStates['a']) {
 		//move backwards
 		car.velocity += 0.0016;
 		if (car.velocity > car.maxVelocity) {
 			car.velocity = car.maxVelocity;
 		}
 		car.move(backward);
-		break;
-	default:
-		break;
 	}
+
+	if (keyStates['b']) {
+		car.velocity -= 0.0016;
+		if (car.velocity < 0) {
+			car.velocity = 0;
+		}
+		car.move(forward);
+	}
+
+	/*for (int i = 0; i < 256; i++) {
+		if (keyStates[i] == true){
+			return;
+		}
+	}
+
+	car.velocity -= 0.0016;
+	if (car.velocity < 0) {
+		car.velocity = 0;
+	}*/
+
+}
+
+void keyPressed(unsigned char key, int xx, int yy){
+
+	keyStates[key] = true;
 }
 
 void keyUp(unsigned char key, int x, int y) {
 
-	//float forward[3] = { 1.0f, 0.0f, 0.0f };
-	//float backward[3] = { -1.0f, 0.0f, 0.0f };
-
-	switch (key) {
-		case 'o':
-			//move left
-			break;
-		case 'p':
-			//move right
-			break;
-		case 'q':
-			//move forward
-			car.velocity = 0;
-			break;
-		case 'a':
-		//move backwards
-			car.velocity = 0;
-			break;
-		default:
-			break;
-	}
+	keyStates[key] = false;
 }
-
 
 
 // ------------------------------------------------------------
@@ -613,6 +603,10 @@ GLuint setupShaders() {
 void init()
 {
 	MyMesh amesh;
+
+	for (int i = 0; i < 256; i++) {
+		keyStates[i] = false;
+	}
 
 	/* Initialization of DevIL */
 	if (ilGetInteger(IL_VERSION_NUM) < IL_VERSION)
@@ -778,7 +772,7 @@ int main(int argc, char **argv) {
 
 
 //	Mouse and Keyboard Callbacks
-	glutKeyboardFunc(processKeys);
+	glutKeyboardFunc(keyPressed);
 	glutKeyboardUpFunc(keyUp);
 	glutMouseFunc(processMouseButtons);
 	glutMotionFunc(processMouseMotion);
