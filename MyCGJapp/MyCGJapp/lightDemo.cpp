@@ -8,7 +8,7 @@
 // The code comes with no warranties, use it at your own risk.
 // You may use it, or parts of it, wherever you want.
 // 
-// Author: João Madeiras Pereira
+// Author: Joï¿½o Madeiras Pereira
 //
 
 #include <math.h>
@@ -93,17 +93,23 @@ class Car {
 	public:
 		float position[3] = { 0.0f, 0.0f, 41.0f };
 		float velocity = 0.00f;
-		float maxVelocity = 0.2f;
+		float maxVelocity = 0.05f;
 		float direction[3] = { 0.0f, 0.0f, 0.0f };
 
 		Car() {};
-		void move(float direction[3]) {
+		void move() {
 			position[0] += direction[0] * velocity;
 			position[1] += direction[1] * velocity;
 			position[2] += direction[2] * velocity;
 		};
 		void setVelocity(float velocityNew) {
 			velocity = velocityNew;
+		}
+
+		void setDirection(float newDirection[3]) {
+			direction[0] = newDirection[0];
+			direction[1] = newDirection[1];
+			direction[2] = newDirection[2];
 		}
 };
 
@@ -249,8 +255,7 @@ void renderScene(void) {
 			float carBodyY = 3.0f;
 			float jointCarGap = -0.5f;
 			
-			float still[3] = { 0.0f, 0.0f, 0.0f };
-			car.move(still);
+			car.move();
 			float* position = car.position;
 
 			
@@ -400,40 +405,39 @@ void keyOperations() {
 
 	if (keyStates['q']) {
 		//move forward
-		car.velocity += 0.0016;
+
+		car.velocity += 0.00016;
 		if (car.velocity > car.maxVelocity) {
 			car.velocity = car.maxVelocity;
 		}
-		car.move(forward);
+
+		car.setDirection(forward);
+		car.move();
 	}
 
 	if (keyStates['a']) {
 		//move backwards
-		car.velocity += 0.0016;
+		car.velocity += 0.00016;
 		if (car.velocity > car.maxVelocity) {
 			car.velocity = car.maxVelocity;
-		}
-		car.move(backward);
+		} 
+		car.setDirection(backward);
+		car.move();
 	}
 
-	if (keyStates['b']) {
-		car.velocity -= 0.0016;
-		if (car.velocity < 0) {
-			car.velocity = 0;
-		}
-		car.move(forward);
-	}
-
-	/*for (int i = 0; i < 256; i++) {
+	for (int i = 0; i < 256; i++) {
 		if (keyStates[i] == true){
 			return;
 		}
 	}
 
-	car.velocity -= 0.0016;
+	car.velocity -= 0.00016;
 	if (car.velocity < 0) {
 		car.velocity = 0;
-	}*/
+	}
+	else if (car.velocity > car.maxVelocity) {
+		car.velocity = car.maxVelocity;
+	}
 
 }
 
