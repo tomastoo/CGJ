@@ -61,6 +61,10 @@ extern float mCompMatrix[COUNT_COMPUTED_MATRICES][16];
 /// The normal matrix
 extern float mNormal3x3[9];
 
+/// Array that holds state of keys
+
+bool* keyStates = new bool[256];
+
 GLint pvm_uniformId;
 GLint vm_uniformId;
 GLint normal_uniformId;
@@ -86,17 +90,18 @@ float lightPos[4] = {4.0f, 6.0f, 2.0f, 1.0f};
 
 class Car {
 	public:
-		float position[3] = { 0.0f, 0.0f, 0.0f };
-		float velocity = 0.01f;
-		float direction[3] = { 1.0f, 0.0f, 0.0f };
+		float position[3] = { 0.0f, 0.0f, 41.0f };
+		float velocity = 0.00f;
+		float maxVelocity = 0.50f;
+		float direction[3] = { 0.0f, 0.0f, 0.0f };
 
 		Car() {};
-		void move() {
+		void move(float direction[3]) {
 			position[0] += direction[0] * velocity;
 			position[1] += direction[1] * velocity;
 			position[2] += direction[2] * velocity;
 		};
-		void setVelocitity(float velocityNew) {
+		void setVelocity(float velocityNew) {
 			velocity = velocityNew;
 		}
 };
@@ -155,7 +160,7 @@ void cam1() {
 	cam = 1;
 };
 void cam2() {
-	//Prespective Top View Cam
+	//Perspective Top View Cam
 	alpha = 0.0f;
 	beta = 90.0f;
 	camX = r * sin(alpha * 3.14f / 180.0f) * cos(beta * 3.14f / 180.0f) + 50;
@@ -182,10 +187,10 @@ void cam3() {
 	//          object;
 
 	float inclination = 55.f;
-	float hight = 10;
+	float height = 10;
 	camX = r * sin(alpha * 3.14f / 180.0f) * cos(beta * 3.14f / 180.0f) + car.position[0];
 	camZ = r * cos(alpha * 3.14f / 180.0f) * cos(beta * 3.14f / 180.0f) + car.position[2];
-	camY = r * sin(inclination * 3.14f / 180.0f) + hight;
+	camY = r * sin(inclination * 3.14f / 180.0f) + height;
 
 	lookAtX = car.position[0];
 	lookAtY = car.position[1];
@@ -201,7 +206,6 @@ void cam3() {
 void renderScene(void) {
 
 	GLint loc;
-	//printf("i am always being called biacht\n");
 	FrameCount++;
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 	// load identity matrices
@@ -243,8 +247,10 @@ void renderScene(void) {
 			float carBodyY = 3.0f;
 			float jointCarGap = -0.5f;
 			
-			car.move();
+			float still[3] = { 0.0f, 0.0f, 0.0f };
+			car.move(still);
 			float* position = car.position;
+
 			
 			switch (objId) {
 			case 0:
@@ -259,7 +265,7 @@ void renderScene(void) {
 				break;
 			case 2:
 				//orange
-				translate(MODEL, 20.0f, 1.5f, 20.0f);
+				translate(MODEL, 15.0f, 1.5f, 35.0f);
 				break;
 			case 3:
 				//car wheel torus RIGHT TOP
@@ -329,33 +335,33 @@ void renderScene(void) {
 	pushMatrix(VIEW);
 	loadIdentity(VIEW);
 
-	switch (cam)
-	{
-	case 1:
-		ortho(m_viewport[0], m_viewport[0] + m_viewport[2] - 1, m_viewport[1], m_viewport[1] + m_viewport[3] - 1, -1, 1);
-		//printf("cam1");
-		break;
-	case 2:
-		perspective(0.0f, 1024.0f, -1, 1);
-		//printf("cam2");
-		break;
-	case 3:
-		perspective(10.0f, 1024.0f, -1, 1);
-		cam3();
-		//printf("cam3");
-		break;
-	default:
-		break;
-	}
-	//RenderText(shaderText, "This is a sample text", 25.0f, 25.0f, 1.0f, 0.5f, 0.8f, 0.2f);
-	//RenderText(shaderText, "CGJ Light and Text Rendering Demo", 440.0f, 570.0f, 0.5f, 0.3, 0.7f, 0.9f);
-	popMatrix(PROJECTION);
-	popMatrix(VIEW);
-	popMatrix(MODEL);
-	glEnable(GL_DEPTH_TEST);
-	glDisable(GL_BLEND);
+switch (cam)
+{
+case 1:
+	ortho(m_viewport[0], m_viewport[0] + m_viewport[2] - 1, m_viewport[1], m_viewport[1] + m_viewport[3] - 1, -1, 1);
+	//printf("cam1");
+	break;
+case 2:
+	perspective(0.0f, 1024.0f, -1, 1);
+	//printf("cam2");
+	break;
+case 3:
+	perspective(10.0f, 1024.0f, -1, 1);
+	cam3();
+	//printf("cam3");
+	break;
+default:
+	break;
+}
+//RenderText(shaderText, "This is a sample text", 25.0f, 25.0f, 1.0f, 0.5f, 0.8f, 0.2f);
+//RenderText(shaderText, "CGJ Light and Text Rendering Demo", 440.0f, 570.0f, 0.5f, 0.3, 0.7f, 0.9f);
+popMatrix(PROJECTION);
+popMatrix(VIEW);
+popMatrix(MODEL);
+glEnable(GL_DEPTH_TEST);
+glDisable(GL_BLEND);
 
-	glutSwapBuffers();
+glutSwapBuffers();
 }
 
 // ------------------------------------------------------------
@@ -365,34 +371,90 @@ void renderScene(void) {
 
 void processKeys(unsigned char key, int xx, int yy)
 {
-	switch(key) {
-		case 27:
-			glutLeaveMainLoop();
-			break;
+	float forward[3] = { 1.0f, 0.0f, 0.0f };
+	float backward[3] = { -1.0f, 0.0f, 0.0f };
+	float left[3] = { 0.0f, 0.0f, -1.0f };
+	float right[3] = { 0.0f, 0.0f, 1.0f };
 
-		case 'c': 
-			printf("Camera Spherical Coordinates (%f, %f, %f)\n", alpha, beta, r);
-			break;
-		case 'm': glEnable(GL_MULTISAMPLE); break;
-		case 'n': glDisable(GL_MULTISAMPLE); break;
-		case '1': 
-			cout << "tecla carregada = " << key;
-			cam1();
-			break;
-		case '2': 
-			cout << "tecla carregada = " << key;
-			cam2();
-			break;
-		case '3': 
-			cout << "tecla carregada = " << key;
-			cam3();
-			break;
-		default:
-			cout << "tecla carregada = " << key;
-			break;
+
+	switch (key) {
+	case 27:
+		glutLeaveMainLoop();
+		break;
+
+	case 'c':
+		printf("Camera Spherical Coordinates (%f, %f, %f)\n", alpha, beta, r);
+		break;
+	case 'm': glEnable(GL_MULTISAMPLE); break;
+	case 'n': glDisable(GL_MULTISAMPLE); break;
+	case '1':
+		cout << "tecla carregada = " << key;
+		cam1();
+		break;
+	case '2':
+		cout << "tecla carregada = " << key;
+		cam2();
+		break;
+	case '3':
+		cout << "tecla carregada = " << key;
+		cam3();
+		break;
+	case 'o':
+		//move left
+		car.velocity += 0.002;
+		car.move(left);
+		break;
+	case 'p':
+		//move right
+		car.velocity += 0.002;
+		car.move(right);
+		rotate(MODEL, 90.0f, 1.0f, 0.0f, 0.0f);
+		break;
+	case 'q':
+		//move forward
+		car.velocity += 0.0016;
+		if (car.velocity > car.maxVelocity) {
+			car.velocity = car.maxVelocity;
+		}
+		car.move(forward);
+		break;
+	case 'a':
+		//move backwards
+		car.velocity += 0.0016;
+		if (car.velocity > car.maxVelocity) {
+			car.velocity = car.maxVelocity;
+		}
+		car.move(backward);
+		break;
+	default:
+		break;
 	}
 }
 
+void keyUp(unsigned char key, int x, int y) {
+
+	//float forward[3] = { 1.0f, 0.0f, 0.0f };
+	//float backward[3] = { -1.0f, 0.0f, 0.0f };
+
+	switch (key) {
+		case 'o':
+			//move left
+			break;
+		case 'p':
+			//move right
+			break;
+		case 'q':
+			//move forward
+			car.velocity = 0;
+			break;
+		case 'a':
+		//move backwards
+			car.velocity = 0;
+			break;
+		default:
+			break;
+	}
+}
 
 
 
@@ -471,11 +533,11 @@ void processMouseMotion(int xx, int yy)
 		//cam2();
 		break;
 	case 3:
-		float inclination = 55.f;
-		float hight = 10;
+		float inclination = 55.0f;
+		float height = 10;
 		camX = r * sin(alphaAux * 3.14f / 180.0f) * cos(betaAux * 3.14f / 180.0f) + car.position[0];
 		camZ = r * cos(alphaAux * 3.14f / 180.0f) * cos(betaAux * 3.14f / 180.0f) + car.position[2];
-		camY = r * sin(inclination * 3.14f / 180.0f) + hight;
+		camY = r * sin(inclination * 3.14f / 180.0f) + height;
 		break;
 	}
 	//camX = rAux * sin(alphaAux * 3.14f / 180.0f) * cos(betaAux * 3.14f / 180.0f);
@@ -717,6 +779,7 @@ int main(int argc, char **argv) {
 
 //	Mouse and Keyboard Callbacks
 	glutKeyboardFunc(processKeys);
+	glutKeyboardUpFunc(keyUp);
 	glutMouseFunc(processMouseButtons);
 	glutMotionFunc(processMouseMotion);
 	glutMouseWheelFunc ( mouseWheel ) ;
