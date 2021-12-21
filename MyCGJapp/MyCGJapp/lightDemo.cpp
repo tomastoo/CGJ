@@ -44,6 +44,7 @@ unsigned int FrameCount = 0;
 int cam = 3;
 //shaders
 VSShaderLib shader;  //geometry
+VSShaderLib shaderGlobal;  //geometry directional light
 VSShaderLib shaderText;  //render bitmap text
 
 //File with the font
@@ -65,6 +66,7 @@ GLint pvm_uniformId;
 GLint vm_uniformId;
 GLint normal_uniformId;
 GLint lPos_uniformId;
+GLint lDir_uniformId;
 GLint tex_loc, tex_loc1, tex_loc2;
 	
 // Camera Position
@@ -84,11 +86,13 @@ float r = 10.0f;
 long myTime,timebase = 0,frame = 0;
 char s[32];
 float lightPos[4] = {4.0f, 6.0f, 2.0f, 1.0f};
-
 float tableX = 100;
 float tableY = 0.5;
 float tableZ = 100;
-
+float lightDir[4] = { tableX / 2, tableY, tableZ / 2, 0.0f };
+float nolightDir[4] = { 0.0f, 0.0f, 0.0f, 0.0f };
+float* directionalLight = nolightDir;
+bool isGlobalLightOn = false;
 
 class Car {
 	public:
@@ -289,6 +293,8 @@ void renderScene(void) {
 	// set the camera using a function similar to gluLookAt
 
 	lookAt(camX, camY, camZ, lookAtX, lookAtY, lookAtZ, 0,1,0);
+	
+	
 	// use our shader
 	glUseProgram(shader.getProgramIndex());
 
@@ -296,9 +302,22 @@ void renderScene(void) {
 		//glUniform4fv(lPos_uniformId, 1, lightPos); //efeito capacete do mineiro, ou seja lighPos foi definido em eye coord 
 
 		float res[4];
-		multMatrixPoint(VIEW, lightPos,res);   //lightPos definido em World Coord so is converted to eye space
-		glUniform4fv(lPos_uniformId, 1, res);
+		float res2[4];
+		multMatrixPoint(VIEW, lightPos, res);   //lightPos definido em World Coord so is converted to eye space
+		//printf("lPos_uniformId = %" );
 
+		glUniform4fv(lPos_uniformId, 1, res);
+		
+//		printf("Directional light = { %.1f, %.1f, %.1f, %.1f}", directionalLight[0], directionalLight[1], directionalLight[2], directionalLight[3]);
+		
+		//multMatrixPoint(VIEW, directionalLight, res2);   //lightPos definido em World Coord so is converted to eye space
+		//printf("Directional light = { %.1f, %.1f, %.1f, %.1f}", res2[0], res2[1], res2[2], res2[3]);
+		//glUniform4fv(lDir_uniformId, 1, res2);
+
+		printf("Directional light = { %.1f, %.1f, %.1f, %.1f}", directionalLight[0], directionalLight[1], directionalLight[2], directionalLight[3]);
+		glUniform4fv(lDir_uniformId, 1, directionalLight);
+		
+		
 	int objId=0; //id of the object mesh - to be used as index of mesh: Mymeshes[objID] means the current mesh
 
 	for (int i = 0 ; i < 8; ++i) {
@@ -330,6 +349,7 @@ void renderScene(void) {
 				//table
 				translate(MODEL, 0.0f, 0.0f, 0.0f);
 				scale(MODEL, tableX, tableY, tableZ);
+				
 				break;
 			case 1:
 				//road
@@ -455,12 +475,20 @@ void processKeys(unsigned char key, int xx, int yy)
 		case 27:
 			glutLeaveMainLoop();
 			break;
-
 		case 'c': 
 			printf("Camera Spherical Coordinates (%f, %f, %f)\n", alpha, beta, r);
 			break;
 		case 'm': glEnable(GL_MULTISAMPLE); break;
-		case 'n': glDisable(GL_MULTISAMPLE); break;
+		case 'n': /*glDisable(GL_MULTISAMPLE);*/ 
+			if (isGlobalLightOn) {
+				directionalLight = nolightDir;
+				isGlobalLightOn = false;
+			}				
+			else {
+				directionalLight = lightDir;
+				isGlobalLightOn = true;
+			}			
+			break;
 		case '1': 
 			alpha = 0.0f;
 			beta = 90.0f;
@@ -623,6 +651,7 @@ GLuint setupShaders() {
 	vm_uniformId = glGetUniformLocation(shader.getProgramIndex(), "m_viewModel");
 	normal_uniformId = glGetUniformLocation(shader.getProgramIndex(), "m_normal");
 	lPos_uniformId = glGetUniformLocation(shader.getProgramIndex(), "l_pos");
+	lDir_uniformId = glGetUniformLocation(shader.getProgramIndex(), "l_dir");
 	tex_loc = glGetUniformLocation(shader.getProgramIndex(), "texmap");
 	tex_loc1 = glGetUniformLocation(shader.getProgramIndex(), "texmap1");
 	tex_loc2 = glGetUniformLocation(shader.getProgramIndex(), "texmap2");
@@ -637,7 +666,28 @@ GLuint setupShaders() {
 	glLinkProgram(shaderText.getProgramIndex());
 	printf("InfoLog for Text Rendering Shader\n%s\n\n", shaderText.getAllInfoLogs().c_str());
 	
-	return(shader.isProgramLinked() && shaderText.isProgramLinked());
+	//// Shader for models
+	//shaderGlobal.init();
+	//shaderGlobal.loadShader(VSShaderLib::VERTEX_SHADER, "shaders/pointlight.vert");
+	//shaderGlobal.loadShader(VSShaderLib::FRAGMENT_SHADER, "shaders/pointlight.frag");
+
+	//// set semantics for the shader variables
+	//glBindFragDataLocation(shaderGlobal.getProgramIndex(), 0, "colorOut");
+	//glBindAttribLocation(shaderGlobal.getProgramIndex(), VERTEX_COORD_ATTRIB, "position");
+	//glBindAttribLocation(shaderGlobal.getProgramIndex(), NORMAL_ATTRIB, "normal");
+	////glBindAttribLocation(shader.getProgramIndex(), TEXTURE_COORD_ATTRIB, "texCoord");
+
+	//glLinkProgram(shaderGlobal.getProgramIndex());
+
+	//pvm_uniformId = glGetUniformLocation(shaderGlobal.getProgramIndex(), "m_pvm");
+	//vm_uniformId = glGetUniformLocation(shaderGlobal.getProgramIndex(), "m_viewModel");
+	//normal_uniformId = glGetUniformLocation(shaderGlobal.getProgramIndex(), "m_normal");
+	//lDir_uniformId = glGetUniformLocation(shaderGlobal.getProgramIndex(), "l_dir");
+	//tex_loc = glGetUniformLocation(shaderGlobal.getProgramIndex(), "texmap");
+	//tex_loc1 = glGetUniformLocation(shaderGlobal.getProgramIndex(), "texmap1");
+	//tex_loc2 = glGetUniformLocation(shaderGlobal.getProgramIndex(), "texmap2");
+
+	return(shader.isProgramLinked() && shaderText.isProgramLinked() /*&& shaderGlobal.isProgramLinked()*/);
 }
 
 // ------------------------------------------------------------
@@ -726,7 +776,7 @@ void init()
 
 	float amb1[] = { 0.3f, 0.0f, 0.0f, 1.0f };
 	float diff1[] = { 0.8f, 0.1f, 0.1f, 1.0f };
-	float spec1[] = { 0.9f, 0.9f, 0.9f, 1.0f };
+	float spec1[] = { 0.0f, 0.9f, 0.9f, 1.0f };
 	shininess = 200.0;
 
 	// ROAD
