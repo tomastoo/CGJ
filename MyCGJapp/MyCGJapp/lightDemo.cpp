@@ -442,11 +442,11 @@ void renderScene(void) {
 		//printf("cam1");
 		break;
 	case 2:
-		perspective(0.0f, 1024.0f, -1, 1);
+		perspective(120.0f, 1.33f, 15.0, 120.0);
 		//printf("cam2");
 		break;
 	case 3:
-		perspective(10.0f, 1024.0f, -1, 1);
+		perspective(120.0f, 1.33f, 15.0, 120.0);
 		cam3();
 		//printf("cam3");
 		break;
