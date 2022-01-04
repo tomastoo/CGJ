@@ -16,7 +16,8 @@ uniform Materials mat;
 in Data {
 	vec3 normal;
 	vec3 eye;
-	vec3 allLights[2];
+	vec3 allLights[7];
+	float lightCount;
 } DataIn;
 
 void main() {
@@ -27,7 +28,7 @@ void main() {
 	vec3 e = normalize(DataIn.eye);
 	int i = 0;
 
-	while(i < 2){
+	while(i < DataIn.lightCount){
 
 		vec3 l = normalize(DataIn.allLights[i]);		
 		

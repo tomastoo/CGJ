@@ -65,7 +65,7 @@ extern float mNormal3x3[9];
 GLint pvm_uniformId;
 GLint vm_uniformId;
 GLint normal_uniformId;
-GLint lPos_uniformId;
+GLint lPos_uniformId[6];
 GLint lDir_uniformId;
 GLint tex_loc, tex_loc1, tex_loc2;
 	
@@ -85,14 +85,31 @@ float r = 10.0f;
 // Frame counting and FPS computation
 long myTime,timebase = 0,frame = 0;
 char s[32];
-float lightPos[4] = {4.0f, 6.0f, 2.0f, 1.0f};
 float tableX = 100;
 float tableY = 0.5;
 float tableZ = 100;
+
 float lightDir[4] = { tableX / 2, tableY, tableZ / 2, 0.0f };
 float nolightDir[4] = { 0.0f, 0.0f, 0.0f, 0.0f };
+
+float pointLightsHight = 10.f;
+
+float lightPos[6][4] = { {tableX, tableY + pointLightsHight, tableZ, 0.0f},
+					{0, tableY + pointLightsHight, 0, 1.0f },
+					{tableX / 3, tableY + pointLightsHight, tableZ / 3, 0.0f },
+					{tableX / 4, tableY + pointLightsHight, tableZ / 4, 0.0f },
+					{tableX / 5, tableY + pointLightsHight, tableZ / 5, 0.0f },
+					{tableX / 1.5f, tableY + pointLightsHight, tableZ / 1.5f, 0.0f }};
+
 float* directionalLight = nolightDir;
-bool isGlobalLightOn = false;
+
+
+bool isDirectionalLightOn = false;
+bool isPointLightsOn = false;
+bool isSpotLightsOn = false;
+
+
+
 
 class Car {
 	public:
@@ -301,20 +318,17 @@ void renderScene(void) {
 		//send the light position in eye coordinates
 		//glUniform4fv(lPos_uniformId, 1, lightPos); //efeito capacete do mineiro, ou seja lighPos foi definido em eye coord 
 
-		float res[4];
+		float res[6][4];
 		float res2[4];
-		multMatrixPoint(VIEW, lightPos, res);   //lightPos definido em World Coord so is converted to eye space
-		//printf("lPos_uniformId = %" );
 
-		glUniform4fv(lPos_uniformId, 1, res);
-		
-//		printf("Directional light = { %.1f, %.1f, %.1f, %.1f}", directionalLight[0], directionalLight[1], directionalLight[2], directionalLight[3]);
-		
-		//multMatrixPoint(VIEW, directionalLight, res2);   //lightPos definido em World Coord so is converted to eye space
-		//printf("Directional light = { %.1f, %.1f, %.1f, %.1f}", res2[0], res2[1], res2[2], res2[3]);
-		//glUniform4fv(lDir_uniformId, 1, res2);
+			for (int i = 0; i < 6; i++) {
+				printf("Point light = { %.1f, %.1f, %.1f, %.1f}\n", lightPos[i][0], lightPos[i][1], lightPos[i][2], lightPos[i][3]);
+				multMatrixPoint(VIEW, lightPos[i], res[i]);   //lightPos definido em World Coord so is converted to eye space
+				glUniform4fv(lPos_uniformId[i], 1, res[i]);
 
-		printf("Directional light = { %.1f, %.1f, %.1f, %.1f}", directionalLight[0], directionalLight[1], directionalLight[2], directionalLight[3]);
+			}
+			printf("\n\n");		
+		//printf("Directional light = { %.1f, %.1f, %.1f, %.1f}", directionalLight[0], directionalLight[1], directionalLight[2], directionalLight[3]);
 		glUniform4fv(lDir_uniformId, 1, directionalLight);
 		
 		
@@ -475,19 +489,43 @@ void processKeys(unsigned char key, int xx, int yy)
 		case 27:
 			glutLeaveMainLoop();
 			break;
-		case 'c': 
-			printf("Camera Spherical Coordinates (%f, %f, %f)\n", alpha, beta, r);
+		case 'c': // POINTING LIGHTS --> LUZES PARA ILUMINAR A MESA
+			//printf("Camera Spherical Coordinates (%f, %f, %f)\n", alpha, beta, r);
+			if (isPointLightsOn) {
+				for (int i = 0; i < 6; i++) {
+					lightPos[i][3] = 0.0f;
+				}
+				isPointLightsOn = false;
+			}
+			else {
+				for (int i = 0; i < 6; i++) {
+					lightPos[i][3] = 1.0f;
+				}
+				isPointLightsOn = true;
+			}
 			break;
 		case 'm': glEnable(GL_MULTISAMPLE); break;
-		case 'n': /*glDisable(GL_MULTISAMPLE);*/ 
-			if (isGlobalLightOn) {
+		case 'n': /*glDisable(GL_MULTISAMPLE);*/
+			// DIRECTIONAL LIGHT --> ILUMINACAO GERAL TIPO DIA E NOITE
+			if (isDirectionalLightOn) {
 				directionalLight = nolightDir;
-				isGlobalLightOn = false;
-			}				
+				isDirectionalLightOn = false;
+			}
 			else {
 				directionalLight = lightDir;
-				isGlobalLightOn = true;
-			}			
+				isDirectionalLightOn = true;
+			}
+			break;
+		case 'h':
+			// SPOTLIGHTS --> ILUMINACAO COMO SE FOSSE AS LUZES FRONTEIRAS DO CARRO
+			if (isSpotLightsOn) {
+				directionalLight = nolightDir;
+				isSpotLightsOn = false;
+			}
+			else {
+				directionalLight = lightDir;
+				isSpotLightsOn = true;
+			}
 			break;
 		case '1': 
 			alpha = 0.0f;
@@ -650,7 +688,14 @@ GLuint setupShaders() {
 	pvm_uniformId = glGetUniformLocation(shader.getProgramIndex(), "m_pvm");
 	vm_uniformId = glGetUniformLocation(shader.getProgramIndex(), "m_viewModel");
 	normal_uniformId = glGetUniformLocation(shader.getProgramIndex(), "m_normal");
-	lPos_uniformId = glGetUniformLocation(shader.getProgramIndex(), "l_pos");
+
+	lPos_uniformId[0] = glGetUniformLocation(shader.getProgramIndex(), "l_pos_1");
+	lPos_uniformId[1] = glGetUniformLocation(shader.getProgramIndex(), "l_pos_2");
+	lPos_uniformId[2] = glGetUniformLocation(shader.getProgramIndex(), "l_pos_3");
+	lPos_uniformId[3] = glGetUniformLocation(shader.getProgramIndex(), "l_pos_4");
+	lPos_uniformId[4] = glGetUniformLocation(shader.getProgramIndex(), "l_pos_5");
+	lPos_uniformId[5] = glGetUniformLocation(shader.getProgramIndex(), "l_pos_6");
+
 	lDir_uniformId = glGetUniformLocation(shader.getProgramIndex(), "l_dir");
 	tex_loc = glGetUniformLocation(shader.getProgramIndex(), "texmap");
 	tex_loc1 = glGetUniformLocation(shader.getProgramIndex(), "texmap1");
