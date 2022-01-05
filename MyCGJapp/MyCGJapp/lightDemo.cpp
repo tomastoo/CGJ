@@ -8,7 +8,7 @@
 // The code comes with no warranties, use it at your own risk.
 // You may use it, or parts of it, wherever you want.
 // 
-// Author: Jo�o Madeiras Pereira
+// Author: Joï¿½o Madeiras Pereira
 //
 
 #include <math.h>
@@ -41,10 +41,9 @@ int WindowHandle = 0;
 int WinX = 1024, WinY = 768;
 
 unsigned int FrameCount = 0;
-int cam = 3;
+int cam = 1;
 //shaders
 VSShaderLib shader;  //geometry
-VSShaderLib shaderGlobal;  //geometry directional light
 VSShaderLib shaderText;  //render bitmap text
 
 //File with the font
@@ -62,60 +61,40 @@ extern float mCompMatrix[COUNT_COMPUTED_MATRICES][16];
 /// The normal matrix
 extern float mNormal3x3[9];
 
+/// Array of boolean values of length 256 (0-255)
+
+bool* keyStates = new bool[256];
+void keyOperations();
+
 GLint pvm_uniformId;
 GLint vm_uniformId;
 GLint normal_uniformId;
-GLint lPos_uniformId[6];
-GLint lDir_uniformId;
+GLint lPos_uniformId;
 GLint tex_loc, tex_loc1, tex_loc2;
 	
 // Camera Position
 float camX, camY, camZ;
 
-//float lookAtX, lookAtY, lookAtZ = 0.0f;
+float lookAtX, lookAtY, lookAtZ = 0.0f;
 
 // Mouse Tracking Variables
 int startX, startY, tracking = 0;
 
 // Camera Spherical Coordinates
-float alpha = -90.0f, beta = 0.0f;
-
+float alpha = 39.0f, beta = 51.0f;
 float r = 10.0f;
 
 // Frame counting and FPS computation
 long myTime,timebase = 0,frame = 0;
 char s[32];
-float tableX = 100;
-float tableY = 0.5;
-float tableZ = 100;
-
-float lightDir[4] = { tableX / 2, tableY, tableZ / 2, 0.0f };
-float nolightDir[4] = { 0.0f, 0.0f, 0.0f, 0.0f };
-
-float pointLightsHight = 10.f;
-
-float lightPos[6][4] = { {tableX, tableY + pointLightsHight, tableZ, 0.0f},
-					{0, tableY + pointLightsHight, 0, 1.0f },
-					{tableX / 3, tableY + pointLightsHight, tableZ / 3, 0.0f },
-					{tableX / 4, tableY + pointLightsHight, tableZ / 4, 0.0f },
-					{tableX / 5, tableY + pointLightsHight, tableZ / 5, 0.0f },
-					{tableX / 1.5f, tableY + pointLightsHight, tableZ / 1.5f, 0.0f }};
-
-float* directionalLight = nolightDir;
-
-
-bool isDirectionalLightOn = false;
-bool isPointLightsOn = false;
-bool isSpotLightsOn = false;
-
-
-
+float lightPos[4] = {4.0f, 6.0f, 2.0f, 1.0f};
 
 class Car {
 	public:
-		float position[3] = { 0.0f, 0.0f, 0.0f };
-		float velocity = 0.01f;
-		float direction[3] = { 1.0f, 0.0f, 0.0f };
+		float position[3] = { 0.0f, 0.0f, 41.0f };
+		float velocity = 0.00f;
+		float maxVelocity = 0.05f;
+		float direction[3] = { 0.0f, 0.0f, 0.0f };
 
 		Car() {};
 		void move() {
@@ -123,88 +102,18 @@ class Car {
 			position[1] += direction[1] * velocity;
 			position[2] += direction[2] * velocity;
 		};
-		void setVelocitity(float velocityNew) {
+		void setVelocity(float velocityNew) {
 			velocity = velocityNew;
 		}
-};
 
-class Orange{
-public:
-	const float velocityIncrease = 0.008f;
-	const float veloctityIntervalIncrease = 0.001;
-	float maxVelocity = 0.1f;
-	float minVelocity = 0.01f;
-	float position[3] = { 0.0f, 1.5f, 0.0f };
-	float velocity;
-	float direction[3] = { 1.0f, 0.0f, 0.0f };
-	float rotationAngle = 0;
-
-	Orange() {
-		// set position random
-		reset();
-	};
-	
-	void move() {
-		position[0] += direction[0] * velocity;
-		position[1] += direction[1] * velocity;
-		position[2] += direction[2] * velocity;
-	};
-
-	void roll() {
-		rotationAngle = velocity * 10;
-	}
-
-	//given a certain table size 
-	void randomPosition() {
-		position[0] = static_cast <float> (rand()) / (static_cast <float> (RAND_MAX / tableX));
-		position[2] = static_cast <float> (rand()) / (static_cast <float> (RAND_MAX / tableZ));
-	}
-
-	bool isOnTable() {
-		if (position[0] > tableX || position[0] < 0) 
-			return false;
-		
-		if (position[2] > tableZ || position[0] < 0)
-			return false;
-
-		return true;
-	}
-
-	void randomDirection() {
-		direction[0] = static_cast <float> (rand()) / static_cast <float> (RAND_MAX);
-		direction[2] = static_cast <float> (rand()) / static_cast <float> (RAND_MAX);
-	}
-
-	void randomVelocity() {
-		velocity = minVelocity + static_cast <float> (rand()) / (static_cast <float> (RAND_MAX / (maxVelocity - minVelocity)));
-	}
-
-	void reset() {
-		randomPosition();
-		randomDirection();
-		randomVelocity();
-	}
-
-	void accelerate() {
-		//new max and min velocity
-		minVelocity += veloctityIntervalIncrease;
-		maxVelocity += veloctityIntervalIncrease;
-
-		//acceleration part
-		velocity += velocityIncrease;
-		if (velocity > maxVelocity) {
-			velocity = maxVelocity;
+		void setDirection(float newDirection[3]) {
+			direction[0] = newDirection[0];
+			direction[1] = newDirection[1];
+			direction[2] = newDirection[2];
 		}
-	}
 };
 
 Car car;
-Orange orange;
-
-float lookAtX = car.position[0];
-float lookAtY = car.position[1];
-float lookAtZ = car.position[2];
-
 
 void timer(int value)
 {
@@ -246,6 +155,8 @@ void changeSize(int w, int h) {
 void cam1() {
 	// Ortogonal Projection Top View Cam
 	// set the camera position based on its spherical coordinates
+	alpha = 0.0f;
+	beta = 90.0f;
 	camX = r * sin(alpha * 3.14f / 180.0f) * cos(beta * 3.14f / 180.0f) + 50;
 	camZ = r * cos(alpha * 3.14f / 180.0f) * cos(beta * 3.14f / 180.0f) + 50;
 	camY = 110;
@@ -255,10 +166,10 @@ void cam1() {
 	lookAtZ = 50.0f;
 	cam = 1;
 };
-
 void cam2() {
-	//Prespective Top View Cam
-
+	//Perspective Top View Cam
+	alpha = 0.0f;
+	beta = 90.0f;
 	camX = r * sin(alpha * 3.14f / 180.0f) * cos(beta * 3.14f / 180.0f) + 50;
 	camZ = r * cos(alpha * 3.14f / 180.0f) * cos(beta * 3.14f / 180.0f) + 50;
 	camY = 110;
@@ -274,6 +185,7 @@ void cam2() {
 void cam3() {
 	// prespective Car Cam
 	// this values rotate the cam in x z WC
+ 	alpha = -90.0f, beta = 0.0f;
 	//inclination 'i' of camera from above
 	//  cam
 	//      \
@@ -282,10 +194,10 @@ void cam3() {
 	//          object;
 
 	float inclination = 55.f;
-	float hight = 10;
+	float height = 10;
 	camX = r * sin(alpha * 3.14f / 180.0f) * cos(beta * 3.14f / 180.0f) + car.position[0];
 	camZ = r * cos(alpha * 3.14f / 180.0f) * cos(beta * 3.14f / 180.0f) + car.position[2];
-	camY = r * sin(inclination * 3.14f / 180.0f) + hight;
+	camY = r * sin(inclination * 3.14f / 180.0f) + height;
 
 	lookAtX = car.position[0];
 	lookAtY = car.position[1];
@@ -300,8 +212,8 @@ void cam3() {
 
 void renderScene(void) {
 
+	keyOperations();
 	GLint loc;
-	//printf("i am always being called biacht\n");
 	FrameCount++;
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 	// load identity matrices
@@ -310,28 +222,16 @@ void renderScene(void) {
 	// set the camera using a function similar to gluLookAt
 
 	lookAt(camX, camY, camZ, lookAtX, lookAtY, lookAtZ, 0,1,0);
-	
-	
 	// use our shader
 	glUseProgram(shader.getProgramIndex());
 
 		//send the light position in eye coordinates
 		//glUniform4fv(lPos_uniformId, 1, lightPos); //efeito capacete do mineiro, ou seja lighPos foi definido em eye coord 
 
-		float res[6][4];
-		float res2[4];
+		float res[4];
+		multMatrixPoint(VIEW, lightPos,res);   //lightPos definido em World Coord so is converted to eye space
+		glUniform4fv(lPos_uniformId, 1, res);
 
-			for (int i = 0; i < 6; i++) {
-				printf("Point light = { %.1f, %.1f, %.1f, %.1f}\n", lightPos[i][0], lightPos[i][1], lightPos[i][2], lightPos[i][3]);
-				multMatrixPoint(VIEW, lightPos[i], res[i]);   //lightPos definido em World Coord so is converted to eye space
-				glUniform4fv(lPos_uniformId[i], 1, res[i]);
-
-			}
-			printf("\n\n");		
-		//printf("Directional light = { %.1f, %.1f, %.1f, %.1f}", directionalLight[0], directionalLight[1], directionalLight[2], directionalLight[3]);
-		glUniform4fv(lDir_uniformId, 1, directionalLight);
-		
-		
 	int objId=0; //id of the object mesh - to be used as index of mesh: Mymeshes[objID] means the current mesh
 
 	for (int i = 0 ; i < 8; ++i) {
@@ -357,13 +257,13 @@ void renderScene(void) {
 			
 			car.move();
 			float* position = car.position;
+
 			
 			switch (objId) {
 			case 0:
 				//table
 				translate(MODEL, 0.0f, 0.0f, 0.0f);
-				scale(MODEL, tableX, tableY, tableZ);
-				
+				scale(MODEL, 100, 0.5, 100);
 				break;
 			case 1:
 				//road
@@ -372,14 +272,7 @@ void renderScene(void) {
 				break;
 			case 2:
 				//orange
-				orange.move();
-				if (!orange.isOnTable()) {
-					orange.reset();
-				}
-				translate(MODEL, orange.position[0], orange.position[1], orange.position[2]);
-				orange.roll();
-				rotate(MODEL, orange.rotationAngle, orange.direction[0], orange.direction[1], orange.direction[2]);
-				orange.accelerate();
+				translate(MODEL, 15.0f, 1.5f, 35.0f);
 				break;
 			case 3:
 				//car wheel torus RIGHT TOP
@@ -449,33 +342,33 @@ void renderScene(void) {
 	pushMatrix(VIEW);
 	loadIdentity(VIEW);
 
-	switch (cam)
-	{
-	case 1:
-		ortho(m_viewport[0], m_viewport[0] + m_viewport[2] - 1, m_viewport[1], m_viewport[1] + m_viewport[3] - 1, -1, 1);
-		//printf("cam1");
-		break;
-	case 2:
-		perspective(120.0f, 1.33f, 15.0, 120.0);
-		//printf("cam2");
-		break;
-	case 3:
-		perspective(120.0f, 1.33f, 15.0, 120.0);
-		cam3();
-		//printf("cam3");
-		break;
-	default:
-		break;
-	}
-	//RenderText(shaderText, "This is a sample text", 25.0f, 25.0f, 1.0f, 0.5f, 0.8f, 0.2f);
-	//RenderText(shaderText, "CGJ Light and Text Rendering Demo", 440.0f, 570.0f, 0.5f, 0.3, 0.7f, 0.9f);
-	popMatrix(PROJECTION);
-	popMatrix(VIEW);
-	popMatrix(MODEL);
-	glEnable(GL_DEPTH_TEST);
-	glDisable(GL_BLEND);
+switch (cam)
+{
+case 1:
+	ortho(m_viewport[0], m_viewport[0] + m_viewport[2] - 1, m_viewport[1], m_viewport[1] + m_viewport[3] - 1, -1, 1);
+	//printf("cam1");
+	break;
+case 2:
+	perspective(0.0f, 1024.0f, -1, 1);
+	//printf("cam2");
+	break;
+case 3:
+	perspective(10.0f, 1024.0f, -1, 1);
+	cam3();
+	//printf("cam3");
+	break;
+default:
+	break;
+}
+//RenderText(shaderText, "This is a sample text", 25.0f, 25.0f, 1.0f, 0.5f, 0.8f, 0.2f);
+//RenderText(shaderText, "CGJ Light and Text Rendering Demo", 440.0f, 570.0f, 0.5f, 0.3, 0.7f, 0.9f);
+popMatrix(PROJECTION);
+popMatrix(VIEW);
+popMatrix(MODEL);
+glEnable(GL_DEPTH_TEST);
+glDisable(GL_BLEND);
 
-	glutSwapBuffers();
+glutSwapBuffers();
 }
 
 // ------------------------------------------------------------
@@ -483,76 +376,80 @@ void renderScene(void) {
 // Events from the Keyboard
 //
 
-void processKeys(unsigned char key, int xx, int yy)
-{
-	switch(key) {
-		case 27:
-			glutLeaveMainLoop();
-			break;
-		case 'c': // POINTING LIGHTS --> LUZES PARA ILUMINAR A MESA
-			//printf("Camera Spherical Coordinates (%f, %f, %f)\n", alpha, beta, r);
-			if (isPointLightsOn) {
-				for (int i = 0; i < 6; i++) {
-					lightPos[i][3] = 0.0f;
-				}
-				isPointLightsOn = false;
-			}
-			else {
-				for (int i = 0; i < 6; i++) {
-					lightPos[i][3] = 1.0f;
-				}
-				isPointLightsOn = true;
-			}
-			break;
-		case 'm': glEnable(GL_MULTISAMPLE); break;
-		case 'n': /*glDisable(GL_MULTISAMPLE);*/
-			// DIRECTIONAL LIGHT --> ILUMINACAO GERAL TIPO DIA E NOITE
-			if (isDirectionalLightOn) {
-				directionalLight = nolightDir;
-				isDirectionalLightOn = false;
-			}
-			else {
-				directionalLight = lightDir;
-				isDirectionalLightOn = true;
-			}
-			break;
-		case 'h':
-			// SPOTLIGHTS --> ILUMINACAO COMO SE FOSSE AS LUZES FRONTEIRAS DO CARRO
-			if (isSpotLightsOn) {
-				directionalLight = nolightDir;
-				isSpotLightsOn = false;
-			}
-			else {
-				directionalLight = lightDir;
-				isSpotLightsOn = true;
-			}
-			break;
-		case '1': 
-			alpha = 0.0f;
-			beta = 90.0f;
-			cout << "tecla carregada = " << key;
-			cam1();
-			break;
-		case '2': 
-			alpha = 0.0f;
-			beta = 90.0f;
-			cout << "tecla carregada = " << key;
-			cam2();
-			break;
-		case '3': 
-			cout << "tecla carregada = " << key;
-			//ESTA ATRIBUICAO DE VALORES E FEITA AQUI POR CAUSA TO MOVIMENTO DE CAMERA ATRAVES DO RATO
-			alpha = -90.0f, beta = 0.0f;
-			cam3();
+void keyOperations() {
 
-			break;
-		default:
-			cout << "tecla carregada = " << key;
-			break;
+	float forward[3] = { 1.0f, 0.0f, 0.0f };
+	float backward[3] = { -1.0f, 0.0f, 0.0f };
+	float left[3] = { 0.0f, 0.0f, -1.0f };
+	float right[3] = { 0.0f, 0.0f, 1.0f };
+
+	if (keyStates[27]) {
+		glutLeaveMainLoop();
 	}
+
+	if (keyStates['c']){
+		printf("Camera Spherical Coordinates (%f, %f, %f)\n", alpha, beta, r);
+		}
+
+	if (keyStates['1']){
+		cam1();
+	}
+
+	if (keyStates['2']) {
+		cam2();
+	}
+
+	if (keyStates['3']) {
+		cam3();
+	}
+
+	if (keyStates['q']) {
+		//move forward
+
+		car.velocity += 0.00016;
+		if (car.velocity > car.maxVelocity) {
+			car.velocity = car.maxVelocity;
+		}
+
+		car.setDirection(forward);
+		car.move();
+	}
+
+	if (keyStates['a']) {
+		//move backwards
+		car.velocity += 0.00016;
+		if (car.velocity > car.maxVelocity) {
+			car.velocity = car.maxVelocity;
+		} 
+		car.setDirection(backward);
+		car.move();
+	}
+
+	for (int i = 0; i < 256; i++) {
+		if (keyStates[i] == true){
+			return;
+		}
+	}
+
+	car.velocity -= 0.00016;
+	if (car.velocity < 0) {
+		car.velocity = 0;
+	}
+	else if (car.velocity > car.maxVelocity) {
+		car.velocity = car.maxVelocity;
+	}
+
 }
 
+void keyPressed(unsigned char key, int xx, int yy){
 
+	keyStates[key] = true;
+}
+
+void keyUp(unsigned char key, int x, int y) {
+
+	keyStates[key] = false;
+}
 
 
 // ------------------------------------------------------------
@@ -579,10 +476,10 @@ void processMouseButtons(int button, int state, int xx, int yy)
 			beta += (yy - startY);
 		}
 		else if (tracking == 2) {
-	/*		r += (yy - startY) * 0.01f;
+			r += (yy - startY) * 0.01f;
 			if (r < 0.1f)
 				r = 0.1f;
-	*/	}
+		}
 		tracking = 0;
 	}
 }
@@ -595,9 +492,9 @@ void processMouseMotion(int xx, int yy)
 	int deltaX, deltaY;
 	float alphaAux, betaAux;
 	float rAux;
-	float slowDown = 0.2f;
-	deltaX =  (- xx + startX) * slowDown;
-	deltaY =  (  yy - startY) * slowDown;
+
+	deltaX =  - xx + startX;
+	deltaY =    yy - startY;
 
 	// left mouse button: move camera
 	if (tracking == 1) {
@@ -624,21 +521,17 @@ void processMouseMotion(int xx, int yy)
 	
 	switch (cam) {
 	case 1:
-		alpha = alphaAux;
-		beta = betaAux;
-		cam1();
+		//cam1();
 		break;
 	case 2:
-		alpha = alphaAux;
-		beta = betaAux;
-		cam2();
+		//cam2();
 		break;
 	case 3:
-		//float inclination = 55.f;
-		//float hight = 10;
-		alpha = alphaAux;
-		beta = betaAux;
-		cam3();
+		float inclination = 55.0f;
+		float height = 10;
+		camX = r * sin(alphaAux * 3.14f / 180.0f) * cos(betaAux * 3.14f / 180.0f) + car.position[0];
+		camZ = r * cos(alphaAux * 3.14f / 180.0f) * cos(betaAux * 3.14f / 180.0f) + car.position[2];
+		camY = r * sin(inclination * 3.14f / 180.0f) + height;
 		break;
 	}
 	//camX = rAux * sin(alphaAux * 3.14f / 180.0f) * cos(betaAux * 3.14f / 180.0f);
@@ -688,15 +581,7 @@ GLuint setupShaders() {
 	pvm_uniformId = glGetUniformLocation(shader.getProgramIndex(), "m_pvm");
 	vm_uniformId = glGetUniformLocation(shader.getProgramIndex(), "m_viewModel");
 	normal_uniformId = glGetUniformLocation(shader.getProgramIndex(), "m_normal");
-
-	lPos_uniformId[0] = glGetUniformLocation(shader.getProgramIndex(), "l_pos_1");
-	lPos_uniformId[1] = glGetUniformLocation(shader.getProgramIndex(), "l_pos_2");
-	lPos_uniformId[2] = glGetUniformLocation(shader.getProgramIndex(), "l_pos_3");
-	lPos_uniformId[3] = glGetUniformLocation(shader.getProgramIndex(), "l_pos_4");
-	lPos_uniformId[4] = glGetUniformLocation(shader.getProgramIndex(), "l_pos_5");
-	lPos_uniformId[5] = glGetUniformLocation(shader.getProgramIndex(), "l_pos_6");
-
-	lDir_uniformId = glGetUniformLocation(shader.getProgramIndex(), "l_dir");
+	lPos_uniformId = glGetUniformLocation(shader.getProgramIndex(), "l_pos");
 	tex_loc = glGetUniformLocation(shader.getProgramIndex(), "texmap");
 	tex_loc1 = glGetUniformLocation(shader.getProgramIndex(), "texmap1");
 	tex_loc2 = glGetUniformLocation(shader.getProgramIndex(), "texmap2");
@@ -711,28 +596,7 @@ GLuint setupShaders() {
 	glLinkProgram(shaderText.getProgramIndex());
 	printf("InfoLog for Text Rendering Shader\n%s\n\n", shaderText.getAllInfoLogs().c_str());
 	
-	//// Shader for models
-	//shaderGlobal.init();
-	//shaderGlobal.loadShader(VSShaderLib::VERTEX_SHADER, "shaders/pointlight.vert");
-	//shaderGlobal.loadShader(VSShaderLib::FRAGMENT_SHADER, "shaders/pointlight.frag");
-
-	//// set semantics for the shader variables
-	//glBindFragDataLocation(shaderGlobal.getProgramIndex(), 0, "colorOut");
-	//glBindAttribLocation(shaderGlobal.getProgramIndex(), VERTEX_COORD_ATTRIB, "position");
-	//glBindAttribLocation(shaderGlobal.getProgramIndex(), NORMAL_ATTRIB, "normal");
-	////glBindAttribLocation(shader.getProgramIndex(), TEXTURE_COORD_ATTRIB, "texCoord");
-
-	//glLinkProgram(shaderGlobal.getProgramIndex());
-
-	//pvm_uniformId = glGetUniformLocation(shaderGlobal.getProgramIndex(), "m_pvm");
-	//vm_uniformId = glGetUniformLocation(shaderGlobal.getProgramIndex(), "m_viewModel");
-	//normal_uniformId = glGetUniformLocation(shaderGlobal.getProgramIndex(), "m_normal");
-	//lDir_uniformId = glGetUniformLocation(shaderGlobal.getProgramIndex(), "l_dir");
-	//tex_loc = glGetUniformLocation(shaderGlobal.getProgramIndex(), "texmap");
-	//tex_loc1 = glGetUniformLocation(shaderGlobal.getProgramIndex(), "texmap1");
-	//tex_loc2 = glGetUniformLocation(shaderGlobal.getProgramIndex(), "texmap2");
-
-	return(shader.isProgramLinked() && shaderText.isProgramLinked() /*&& shaderGlobal.isProgramLinked()*/);
+	return(shader.isProgramLinked() && shaderText.isProgramLinked());
 }
 
 // ------------------------------------------------------------
@@ -742,9 +606,11 @@ GLuint setupShaders() {
 
 void init()
 {
-	srand(static_cast <unsigned> (time(0)));
-
 	MyMesh amesh;
+
+	for (int i = 0; i < 256; i++) {
+		keyStates[i] = false;
+	}
 
 	/* Initialization of DevIL */
 	if (ilGetInteger(IL_VERSION_NUM) < IL_VERSION)
@@ -821,7 +687,7 @@ void init()
 
 	float amb1[] = { 0.3f, 0.0f, 0.0f, 1.0f };
 	float diff1[] = { 0.8f, 0.1f, 0.1f, 1.0f };
-	float spec1[] = { 0.0f, 0.9f, 0.9f, 1.0f };
+	float spec1[] = { 0.9f, 0.9f, 0.9f, 1.0f };
 	shininess = 200.0;
 
 	// ROAD
@@ -876,7 +742,6 @@ void init()
 	glEnable(GL_MULTISAMPLE);
 	glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
 
-
 }
 
 // ------------------------------------------------------------
@@ -911,7 +776,8 @@ int main(int argc, char **argv) {
 
 
 //	Mouse and Keyboard Callbacks
-	glutKeyboardFunc(processKeys);
+	glutKeyboardFunc(keyPressed);
+	glutKeyboardUpFunc(keyUp);
 	glutMouseFunc(processMouseButtons);
 	glutMotionFunc(processMouseMotion);
 	glutMouseWheelFunc ( mouseWheel ) ;
@@ -939,6 +805,3 @@ int main(int argc, char **argv) {
 
 	return(0);
 }
-
-
-
