@@ -89,17 +89,23 @@ float tableX = 100;
 float tableY = 0.5;
 float tableZ = 100;
 
-float lightDir[4] = { tableX / 2, tableY, tableZ / 2, 0.0f };
+float lightDir[4] = { tableX / 2, tableY , tableZ / 2, 0.0f };
 float nolightDir[4] = { 0.0f, 0.0f, 0.0f, 0.0f };
 
-float pointLightsHight = 10.f;
+float pointLightsHight = 2.f;
 
-float lightPos[6][4] = { {tableX, tableY + pointLightsHight, tableZ, 0.0f},
-					{0, tableY + pointLightsHight, 0, 1.0f },
-					{tableX / 3, tableY + pointLightsHight, tableZ / 3, 0.0f },
-					{tableX / 4, tableY + pointLightsHight, tableZ / 4, 0.0f },
-					{tableX / 5, tableY + pointLightsHight, tableZ / 5, 0.0f },
-					{tableX / 1.5f, tableY + pointLightsHight, tableZ / 1.5f, 0.0f }};
+const float plGrid[2] = { 4,3 }; // This means that the point lights will be devided 
+						// |_|_|_|_| like this so the first value is the number of 
+						// |_|_|_|_| collumns and the second is the number of rows 
+						// |_|_|_|_| (x,z)
+					
+
+float lightPos[6][4] = {{tableX / plGrid[0], tableY + pointLightsHight, tableZ / plGrid[1], 0.0f},
+						{(tableX / plGrid[0]) * 2, tableY + pointLightsHight, (tableZ / plGrid[1]), 0.0f},
+						{(tableX / plGrid[0]) * 3, tableY + pointLightsHight, (tableZ / plGrid[1]), 0.0f}, 
+						{(tableX / plGrid[0]), tableY + pointLightsHight, (tableZ / plGrid[1]) * 2, 0.0f}, 
+						{(tableX / plGrid[0]) * 2, tableY + pointLightsHight, (tableZ / plGrid[1]) * 2, 0.0f},
+						{(tableX / plGrid[0]) * 3, tableY + pointLightsHight, (tableZ / plGrid[1]) * 2, 0.0f}, };
 
 float* directionalLight = nolightDir;
 
@@ -324,12 +330,17 @@ void renderScene(void) {
 			for (int i = 0; i < 6; i++) {
 				printf("Point light = { %.1f, %.1f, %.1f, %.1f}\n", lightPos[i][0], lightPos[i][1], lightPos[i][2], lightPos[i][3]);
 				multMatrixPoint(VIEW, lightPos[i], res[i]);   //lightPos definido em World Coord so is converted to eye space
+				printf("WORLD COORDS Point light = { %.1f, %.1f, %.1f, %.1f}\n", res[i][0], res[i][1], res[i][2], res[i][3]);
+
 				glUniform4fv(lPos_uniformId[i], 1, res[i]);
 
 			}
 			printf("\n\n");		
 		//printf("Directional light = { %.1f, %.1f, %.1f, %.1f}", directionalLight[0], directionalLight[1], directionalLight[2], directionalLight[3]);
-		glUniform4fv(lDir_uniformId, 1, directionalLight);
+		
+		multMatrixPoint(VIEW, directionalLight, res2);   //lightPos definido em World Coord so is converted to eye space
+		printf("WORLD COORDS DIRECTIONAL light = { %.1f, %.1f, %.1f, %.1f}\n", res2[0], res2[1], res2[2], res2[3]);
+		glUniform4fv(lDir_uniformId, 1, res2);
 		
 		
 	int objId=0; //id of the object mesh - to be used as index of mesh: Mymeshes[objID] means the current mesh
