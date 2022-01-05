@@ -16,7 +16,8 @@ uniform Materials mat;
 in Data {
 	vec3 normal;
 	vec3 eye;
-	vec3 lightDir;
+	vec3 allLights[7];
+	float lightCount;
 } DataIn;
 
 void main() {
@@ -24,21 +25,25 @@ void main() {
 	vec4 spec = vec4(0.0);
 
 	vec3 n = normalize(DataIn.normal);
-	vec3 l = normalize(DataIn.lightDir);
 	vec3 e = normalize(DataIn.eye);
+	int i = 0;
 
-	float intensity = max(dot(n,l), 0.0);
+	while(i < DataIn.lightCount){
 
-	
-	if (intensity > 0.0) {
-		vec3 h = normalize(l + e);
-		float intSpec = max(dot(h,n), 0.0);
-		spec = mat.specular * pow(intSpec, mat.shininess);
+		vec3 l = normalize(DataIn.allLights[i]);		
+		
+		float intensity = max(dot(n,l), 0.0);
+		if (intensity > 0.0) {
+			vec3 h = normalize(l + e);
+			float intSpec = max(dot(h,n), 0.0);
+			spec = mat.specular * pow(intSpec, mat.shininess);
+			if(i == 0){
+				colorOut = max(intensity * mat.diffuse + spec, mat.ambient);
+			}
+			else{
+				colorOut += max(intensity * mat.diffuse + spec, mat.ambient);
+			}
+		}
+		i++;
 	}
-	
-	colorOut = max(intensity * mat.diffuse + spec, mat.ambient);
-
-// gouraud
-
-
 }
