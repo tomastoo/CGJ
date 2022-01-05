@@ -58,9 +58,12 @@ vector<struct MyMesh> myMeshes;
 /// The storage for matrices
 extern float mMatrix[COUNT_MATRICES][16];
 extern float mCompMatrix[COUNT_COMPUTED_MATRICES][16];
-
 /// The normal matrix
 extern float mNormal3x3[9];
+
+/// Array of boolean values of length 256 (0-255)
+bool* keyStates = new bool[256];
+void keyOperations();
 
 GLint pvm_uniformId;
 GLint vm_uniformId;
@@ -120,8 +123,9 @@ bool isSpotLightsOn = false;
 class Car {
 	public:
 		float position[3] = { 0.0f, 0.0f, 0.0f };
-		float velocity = 0.01f;
-		float direction[3] = { 1.0f, 0.0f, 0.0f };
+		float velocity = 0.00f;
+		float maxVelocity = 0.05f;
+		float direction[3] = { 0.0f, 0.0f, 0.0f };
 
 		Car() {};
 		void move() {
@@ -129,8 +133,15 @@ class Car {
 			position[1] += direction[1] * velocity;
 			position[2] += direction[2] * velocity;
 		};
+
 		void setVelocitity(float velocityNew) {
 			velocity = velocityNew;
+		}
+
+		void setDirection(float newDirection[3]) {
+			direction[0] = newDirection[0];
+			direction[1] = newDirection[1];
+			direction[2] = newDirection[2];
 		}
 };
 
@@ -306,6 +317,7 @@ void cam3() {
 
 void renderScene(void) {
 
+	keyOperations();
 	GLint loc;
 	//printf("i am always being called biacht\n");
 	FrameCount++;
@@ -563,7 +575,128 @@ void processKeys(unsigned char key, int xx, int yy)
 	}
 }
 
+//
+// Events from the Keyboard
+//
 
+void keyOperations() {
+
+	float forward[3] = { 1.0f, 0.0f, 0.0f };
+	float backward[3] = { -1.0f, 0.0f, 0.0f };
+	float left[3] = { 0.0f, 0.0f, -1.0f };
+	float right[3] = { 0.0f, 0.0f, 1.0f };
+
+	if (keyStates[27]) {
+		glutLeaveMainLoop();
+	}
+
+	if (keyStates['q']) {
+		//move forward
+
+		car.velocity += 0.00016;
+		if (car.velocity > car.maxVelocity) {
+			car.velocity = car.maxVelocity;
+		}
+
+		car.setDirection(forward);
+		car.move();
+	}
+
+	if (keyStates['a']) {
+		//move backwards
+		car.velocity += 0.00016;
+		if (car.velocity > car.maxVelocity) {
+			car.velocity = car.maxVelocity;
+		}
+		car.setDirection(backward);
+		car.move();
+	}
+
+	for (int i = 0; i < 256; i++) {
+		if (keyStates[i] == true) {
+			return;
+		}
+	}
+
+	car.velocity -= 0.00016;
+	if (car.velocity < 0) {
+		car.velocity = 0;
+	}
+	else if (car.velocity > car.maxVelocity) {
+		car.velocity = car.maxVelocity;
+	}
+
+}
+
+void keyPressed(unsigned char key, int xx, int yy) {
+
+	keyStates[key] = true;
+}
+
+void keyUp(unsigned char key, int x, int y) {
+	switch (key) {
+	case 'c': // POINTING LIGHTS --> LUZES PARA ILUMINAR A MESA
+		//printf("Camera Spherical Coordinates (%f, %f, %f)\n", alpha, beta, r);
+		if (isPointLightsOn) {
+			for (int i = 0; i < 6; i++) {
+				lightPos[i][3] = 0.0f;
+			}
+			isPointLightsOn = false;
+		}
+		else {
+			for (int i = 0; i < 6; i++) {
+				lightPos[i][3] = 1.0f;
+			}
+			isPointLightsOn = true;
+		}
+		break;
+	case 'n': /*glDisable(GL_MULTISAMPLE);*/
+		// DIRECTIONAL LIGHT --> ILUMINACAO GERAL TIPO DIA E NOITE
+		if (isDirectionalLightOn) {
+			directionalLight = nolightDir;
+			isDirectionalLightOn = false;
+		}
+		else {
+			directionalLight = lightDir;
+			isDirectionalLightOn = true;
+		}
+		break;
+	case 'h':
+		// SPOTLIGHTS --> ILUMINACAO COMO SE FOSSE AS LUZES FRONTEIRAS DO CARRO
+		if (isSpotLightsOn) {
+			directionalLight = nolightDir;
+			isSpotLightsOn = false;
+		}
+		else {
+			directionalLight = lightDir;
+			isSpotLightsOn = true;
+		}
+		break;
+	case '1':
+		alpha = 0.0f;
+		beta = 90.0f;
+		cout << "tecla carregada = " << key;
+		cam1();
+		break;
+	case '2':
+		alpha = 0.0f;
+		beta = 90.0f;
+		cout << "tecla carregada = " << key;
+		cam2();
+		break;
+	case '3':
+		cout << "tecla carregada = " << key;
+		//ESTA ATRIBUICAO DE VALORES E FEITA AQUI POR CAUSA TO MOVIMENTO DE CAMERA ATRAVES DO RATO
+		alpha = -90.0f, beta = 0.0f;
+		cam3();
+
+		break;
+	default:
+		cout << "tecla carregada = " << key;
+		break;
+	}
+	keyStates[key] = false;
+}
 
 
 // ------------------------------------------------------------
@@ -757,6 +890,10 @@ void init()
 
 	MyMesh amesh;
 
+	for (int i = 0; i < 256; i++) {
+		keyStates[i] = false;
+	}
+
 	/* Initialization of DevIL */
 	if (ilGetInteger(IL_VERSION_NUM) < IL_VERSION)
 	{
@@ -922,7 +1059,9 @@ int main(int argc, char **argv) {
 
 
 //	Mouse and Keyboard Callbacks
-	glutKeyboardFunc(processKeys);
+
+	glutKeyboardFunc(keyPressed);
+	glutKeyboardUpFunc(keyUp);
 	glutMouseFunc(processMouseButtons);
 	glutMotionFunc(processMouseMotion);
 	glutMouseWheelFunc ( mouseWheel ) ;
