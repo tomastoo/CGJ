@@ -216,6 +216,7 @@ class Car {
 			for (int i = 0; i < 3; i++) {
 				direction[i] = newDir[i];
 			}
+			updateSpotlights();
 		}
 
 		void setDirection(float newDirection[3]) {
