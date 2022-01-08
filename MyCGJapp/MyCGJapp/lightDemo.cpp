@@ -95,6 +95,8 @@ int startX, startY, tracking = 0;
 
 // Camera Spherical Coordinates
 float alpha = -90.0f, beta = 0.0f;
+float alpha_cam3 = -90.0f, beta_cam3 = 0.0f;
+
 
 float r = 10.0f;
 
@@ -251,11 +253,13 @@ class Car {
 		void changeDirection(float isRight) {
 			float* newDir;
 			if (isRight) {
+				alpha_cam3 -= rotationAngle;
 				directionAngle -= rotationAngle;
 				newDir = rotateVec4(direction, -rotationAngle, 0, 1, 0);
 			}
 			else {
 				directionAngle += rotationAngle;
+				alpha_cam3 += rotationAngle;
 				newDir = rotateVec4(direction, rotationAngle, 0, 1, 0);
 			}
 			for (int i = 0; i < 3; i++) {
@@ -426,8 +430,8 @@ void cam3() {
 
 	float inclination = 55.f;
 	float hight = 10;
-	camX = r * sin(alpha * 3.14f / 180.0f) * cos(beta * 3.14f / 180.0f) + car.position[0];
-	camZ = r * cos(alpha * 3.14f / 180.0f) * cos(beta * 3.14f / 180.0f) + car.position[2];
+	camX = r * sin(alpha_cam3 * 3.14f / 180.0f) * cos(beta_cam3 * 3.14f / 180.0f) + car.position[0];
+	camZ = r * cos(alpha_cam3 * 3.14f / 180.0f) * cos(beta_cam3 * 3.14f / 180.0f) + car.position[2];
 	camY = r * sin(inclination * 3.14f / 180.0f) + hight;
 
 	lookAtX = car.position[0];
