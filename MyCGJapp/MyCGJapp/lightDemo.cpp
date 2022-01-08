@@ -125,7 +125,53 @@ float lightPos[6][4] = {{tableX / plGrid[0], tableY + pointLightsHight, tableZ /
 
 float* directionalLight = nolightDir;
 
+float roadWidth = 10;
+//float roadTurn = sqrt((roadWidth * roadWidth) + (roadWidth * roadWidth));
+float roadTurn = 5;
 
+int numObjects = 0;
+int mapRoad[10][10] = { {1, 1, 1, 0, 0, 0, 0, 0, 0, 0},//1
+						{0, 0, 1, 0, 0, 1, 1, 1, 1, 1},//2
+						{0, 0, 1, 0, 0, 1, 0, 0, 0, 1},//3
+						{0, 0, 1, 1, 1, 1, 0, 0, 0, 1},//4
+						{0, 0, 0, 0, 0, 0, 0, 1, 1, 1},//5
+						{1, 1, 1, 1, 1, 1, 1, 1, 0, 0},//6
+						{1, 0, 0, 0, 0, 0, 0, 0, 0, 0},//7
+						{1, 0, 0, 1, 1, 1, 1, 0, 0, 0},//8
+						{1, 0, 0, 1, 0, 0, 1, 0, 0, 0},//9
+						{1, 1, 1, 1, 0, 0, 1, 1, 1, 1} };//10
+
+int mapRows = sizeof(mapRoad) / sizeof(mapRoad[0]);
+int mapCols = sizeof(mapRoad[0]) / sizeof(mapRoad[0][0]);
+int numRoads = 0;
+//CalcRoads();
+
+int CalcRoads() {
+	int count = 0;
+	for (int i = 0; i < mapRows; i++) {
+		for (int j = 0; j < mapCols; j++) {
+			if (mapRoad[i][j] != 0) {
+				count++;
+			}
+		}
+	};
+	printf("%d", count);
+	return count;
+}
+
+/*
+class RoadSegment {
+	RoadID _id;
+	RoadID _connections[2];
+	Vec3D _positions[2];
+	
+};
+
+class RoadID {
+	unsigned short X;
+
+};
+*/
 bool isDirectionalLightOn = false;
 bool isPointLightsOn = false;
 bool isSpotLightsOn = false;
@@ -137,7 +183,6 @@ struct Spotlight
 	float dir[4];
 	float ang;
 };
-
 class Car {
 	public:
 		float position[3] = { 0.0f, 0.0f, 0.0f };  //41.5 no z para tar na rua
@@ -466,8 +511,7 @@ void renderScene(void) {
 	glUniform4fv(slCutOffAngle_uniformId[1], 1, &car.spotlights[1]->ang);
 
 	int objId=0; //id of the object mesh - to be used as index of mesh: Mymeshes[objID] means the current mesh
-
-	for (int i = 0 ; i < 8; ++i) {
+	for (int i = 0 ; i < numObjects; ++i) {
 //		for (int j = 0; j < 2; ++j) {
 
 			// send the material
@@ -488,22 +532,26 @@ void renderScene(void) {
 			float carBodyX = 3.0f;
 			float jointCarGap = 0.5f;
 			
-			car.move();
+			//car.move();
 			float* position = car.position;
+
+			float p;
+			float q;
 			
 			switch (objId) {
 			case 0:
 				//table
 				translate(MODEL, 0.0f, 0.0f, 0.0f);
 				scale(MODEL, tableX, tableY, tableZ);
-				
+
 				break;
+				/*
+				case 1:
+					//road
+					translate(MODEL, 0.0f, 0.1f, 40.0f);
+					scale(MODEL, 100, 0.5, 5);
+					break;*/
 			case 1:
-				//road
-				translate(MODEL, 0.0f, 0.1f, 40.0f);
-				scale(MODEL, 100, 0.5, 5);
-				break;
-			case 2:
 				//orange
 				orange.move();
 				if (!orange.isOnTable()) {
@@ -514,7 +562,7 @@ void renderScene(void) {
 				rotate(MODEL, orange.rotationAngle, orange.direction[0], orange.direction[1], orange.direction[2]);
 				orange.accelerate();
 				break;
-			case 3:
+			case 2:
 				//car wheel torus RIGHT TOP
 				translate(MODEL, position[0] + (carBodyZ)*sin(DegToRad(car.directionAngle)) + (carBodyX - jointCarGap) * cos(DegToRad(car.directionAngle)), position[1] + torusY, position[2] + carBodyZ * cos(DegToRad(car.directionAngle)) - (carBodyX - jointCarGap) * sin(DegToRad(car.directionAngle)));
 				rotate(MODEL, car.directionAngle, 0.0f, 1.0f, 0.0f);
@@ -522,18 +570,18 @@ void renderScene(void) {
 				rotate(MODEL, 90.0f, 1.0f, 0.0f, 0.0f);
 
 				break;
-			case 4:
+			case 3:
 				//car wheel torus LEFT TOP
-				translate(MODEL, position[0] + (carBodyX - jointCarGap )* cos(DegToRad(car.directionAngle)), position[1] + torusY, position[2] - (carBodyX - jointCarGap) * sin(DegToRad(car.directionAngle)));
+				translate(MODEL, position[0] + (carBodyX - jointCarGap) * cos(DegToRad(car.directionAngle)), position[1] + torusY, position[2] - (carBodyX - jointCarGap) * sin(DegToRad(car.directionAngle)));
 				rotate(MODEL, car.directionAngle, 0.0f, 1.0f, 0.0f);
 				//translate(MODEL, (position[0] + carBodyX - jointCarGap), position[1] + torusY, position[2]);
 				rotate(MODEL, 90.0f, 1.0f, 0.0f, 0.0f);
 
-
 				//translate(MODEL, (position[0] + carBodyY + jointCarGap) * cos(car.directionAngle * 3.14159265358979323846f / 180), position[1] + torusY, -(position[2] + carBodyY + jointCarGap) * sin(car.directionAngle * 3.14159265358979323846f / 180));
 				//*sin(car.directionAngle * 3.14159265358979323846f/180)
 				break;
-			case 5:
+
+			case 4:
 				//car wheel torus RIGHT BOTTOM
 				
 				translate(MODEL, position[0] + carBodyZ * sin(DegToRad(car.directionAngle)) + (jointCarGap * cos(DegToRad(car.directionAngle))), position[1] + torusY, position[2] + (carBodyZ* cos(car.directionAngle * 3.14159265358979323846f / 180)) - (jointCarGap * sin(car.directionAngle * 3.14159265358979323846f / 180)));
@@ -542,7 +590,7 @@ void renderScene(void) {
 				rotate(MODEL, 90.0f, 1.0f, 0.0f, 0.0f);
 
 				break;
-			case 6:
+			case 5:
 				//car wheel torus LEFT BOTTOM
 
 				translate(MODEL, position[0] + jointCarGap * cos(DegToRad(car.directionAngle)), position[1] + torusY, position[2] - jointCarGap * sin(DegToRad(car.directionAngle)));
@@ -551,12 +599,48 @@ void renderScene(void) {
 				rotate(MODEL, 90.0f, 1.0f, 0.0f, 0.0f);
 
 				break;
-			case 7:
+			case 6:
 				//car body
 				translate(MODEL, position[0], position[1] + torusY - 0.2f, position[2]);
 				rotate(MODEL, car.directionAngle, 0.0f, 1.0f, 0.0f);
 				scale(MODEL, carBodyX, 0.5, carBodyZ);
 			
+				break;
+			case 7:
+				//butter
+				p = (float) (rand() / RAND_MAX) * 100;
+				q = (float) (rand() / RAND_MAX) * 100;
+				translate(MODEL, p, 0.5f, q);
+				scale(MODEL, 4, 2, 5);
+				break;
+			case 8:
+				//butter
+				p = (float) ((rand() / RAND_MAX) * 100);
+				q = (float) ((rand() / RAND_MAX) * 100);
+				translate(MODEL, p, 0.5f, q);
+				scale(MODEL, 4, 2,5);
+				break;
+			case 9:
+				//butter
+				p = (float) (rand() / RAND_MAX) * 100;
+				q = (float) (rand() / RAND_MAX) * 100;
+				translate(MODEL, p, 0.5f, q);
+				scale(MODEL, 4, 2, 5);
+				break;
+			case 10:
+				//butter
+				p = (float) (rand() / RAND_MAX) * 100;
+				q = (float) (rand() / RAND_MAX) * 100;
+				translate(MODEL, p, 0.5f, q);
+				scale(MODEL, 4, 2, 5);
+				break;
+
+			case 11:
+				//butter
+				p = (float) (rand() / RAND_MAX) * 100;
+				q = (float) (rand() / RAND_MAX) * 100;
+				translate(MODEL, p, 0.5f, q);
+				scale(MODEL, 4, 2, 5);
 				break;
 			}
 
@@ -580,6 +664,63 @@ void renderScene(void) {
 			popMatrix(MODEL);
 			objId++;
 		//}
+	}
+
+	for (int j = 0; j < mapRows; j++) {
+		for (int k = 0; k < mapCols; k++) {
+			if (mapRoad[j][k] == 0) {
+				continue;
+			}
+			printf("numR:  %d", numRoads);
+			// send the material
+			loc = glGetUniformLocation(shader.getProgramIndex(), "mat.ambient");
+			glUniform4fv(loc, 1, myMeshes[objId].mat.ambient);
+			loc = glGetUniformLocation(shader.getProgramIndex(), "mat.diffuse");
+			glUniform4fv(loc, 1, myMeshes[objId].mat.diffuse);
+			loc = glGetUniformLocation(shader.getProgramIndex(), "mat.specular");
+			glUniform4fv(loc, 1, myMeshes[objId].mat.specular);
+			loc = glGetUniformLocation(shader.getProgramIndex(), "mat.shininess");
+			glUniform1f(loc, myMeshes[objId].mat.shininess);
+			pushMatrix(MODEL);
+
+			// TODO THIS IS SHIT I WANT THIS WHEN DEFINING THE VO in the init() func
+			// Values correspond to 0,0 on the table coords = wc
+			float torusY = 1.0f; //z in world coords
+			float carBodyX = 1.5f;
+			float carBodyY = 3.0f;
+			float jointCarGap = -0.5f;
+
+			car.move();
+			float* position = car.position;
+
+			if (mapRoad[j][k] == 1) {
+				translate(MODEL, roadWidth*k, 0.1f, roadWidth*j);
+				scale(MODEL, roadWidth, 0.5, roadWidth);
+			}
+			else if (mapRoad[j][k] == 2) {
+				translate(MODEL, roadTurn*k, 0.1f, roadTurn*j);
+				scale(MODEL, roadTurn, 0.5, roadTurn);
+			}
+			// send matrices to OGL
+			computeDerivedMatrix(PROJ_VIEW_MODEL);
+			glUniformMatrix4fv(vm_uniformId, 1, GL_FALSE, mCompMatrix[VIEW_MODEL]);
+			glUniformMatrix4fv(pvm_uniformId, 1, GL_FALSE, mCompMatrix[PROJ_VIEW_MODEL]);
+			computeNormalMatrix3x3();
+			glUniformMatrix3fv(normal_uniformId, 1, GL_FALSE, mNormal3x3);
+
+			// Render mesh
+			glBindVertexArray(myMeshes[objId].vao);
+
+			if (!shader.isProgramValid()) {
+				printf("Program Not Valid!\n");
+				exit(1);
+			}
+			glDrawElements(myMeshes[objId].type, myMeshes[objId].numIndexes, GL_UNSIGNED_INT, 0);
+			glBindVertexArray(0);
+
+			popMatrix(MODEL);
+			objId++;
+		}
 	}
 
 	//Render text (bitmap fonts) in screen coordinates. So use ortoghonal projection with viewport coordinates.
@@ -612,8 +753,6 @@ void renderScene(void) {
 		perspective(120.0f, 1.33f, 15.0, 120.0);
 		cam3();
 		//printf("cam3");
-		break;
-	default:
 		break;
 	}
 	//RenderText(shaderText, "This is a sample text", 25.0f, 25.0f, 1.0f, 0.5f, 0.8f, 0.2f);
@@ -1112,14 +1251,16 @@ void init()
 	// set the camera position based on its spherical coordinates
 	camX = r * sin(alpha * 3.14f / 180.0f) * cos(beta * 3.14f / 180.0f);
 	camZ = r * cos(alpha * 3.14f / 180.0f) * cos(beta * 3.14f / 180.0f);
-	camY = r *   						     sin(beta * 3.14f / 180.0f);
+	camY = r * sin(beta * 3.14f / 180.0f);
 
-	
-	float amb[]= {0.2f, 0.15f, 0.1f, 1.0f};
-	float diff[] = {0.8f, 0.6f, 0.4f, 1.0f};
-	float spec[] = {0.8f, 0.8f, 0.8f, 1.0f};
-	float emissive[] = {0.0f, 0.0f, 0.0f, 1.0f};
-	float shininess= 100.0f;
+	numRoads = CalcRoads();
+
+
+	float amb[] = { 0.2f, 0.15f, 0.1f, 1.0f };
+	float diff[] = { 0.8f, 0.6f, 0.4f, 1.0f };
+	float spec[] = { 0.8f, 0.8f, 0.8f, 1.0f };
+	float emissive[] = { 0.0f, 0.0f, 0.0f, 1.0f };
+	float shininess = 100.0f;
 	int texcount = 0;
 
 	//// create geometry and VAO of the pawn
@@ -1169,6 +1310,7 @@ void init()
 	amesh.mat.shininess = shininess;
 	amesh.mat.texCount = texcount;
 	myMeshes.push_back(amesh);
+	numObjects++;
 
 
 	float amb1[] = { 0.3f, 0.0f, 0.0f, 1.0f };
@@ -1176,15 +1318,6 @@ void init()
 	float spec1[] = { 0.0f, 0.9f, 0.9f, 1.0f };
 	shininess = 200.0;
 
-	// ROAD
-	amesh = createCube();
-	memcpy(amesh.mat.ambient, amb1, 4 * sizeof(float));
-	memcpy(amesh.mat.diffuse, diff1, 4 * sizeof(float));
-	memcpy(amesh.mat.specular, spec1, 4 * sizeof(float));
-	memcpy(amesh.mat.emissive, emissive, 4 * sizeof(float));
-	amesh.mat.shininess = shininess;
-	amesh.mat.texCount = texcount;
-	myMeshes.push_back(amesh);
 
 
 	float amb2[] = { 1.0f, 0.647f, 0.0f, 1.0f };
@@ -1197,6 +1330,7 @@ void init()
 	amesh.mat.shininess = shininess;
 	amesh.mat.texCount = texcount;
 	myMeshes.push_back(amesh);
+	numObjects++;
 
 	// Car
 	float amb3[] = { 0.0f, 0.0f, 0.0f, 0.0f };
@@ -1211,6 +1345,7 @@ void init()
 		amesh.mat.shininess = shininess;
 		amesh.mat.texCount = texcount;
 		myMeshes.push_back(amesh);
+		numObjects++;
 	}
 	float amb4[] = { 0.0f, 1.0f, 0.647f, 0.0f };
 	amesh = createCube();
@@ -1221,6 +1356,35 @@ void init()
 	amesh.mat.shininess = shininess;
 	amesh.mat.texCount = texcount;
 	myMeshes.push_back(amesh);
+	numObjects++;
+
+	//Butter
+	for (int i = 0; i < 5; i++) {
+		amesh = createCube();
+		memcpy(amesh.mat.ambient, amb4, 4 * sizeof(float));
+		memcpy(amesh.mat.diffuse, diff, 4 * sizeof(float));
+		memcpy(amesh.mat.specular, spec, 4 * sizeof(float));
+		memcpy(amesh.mat.emissive, emissive, 4 * sizeof(float));
+		amesh.mat.shininess = shininess;
+		amesh.mat.texCount = texcount;
+		myMeshes.push_back(amesh);
+		numObjects++;
+	};
+
+	// ROAD
+	for (int i = 0; i < numRoads; i++) {
+		amesh = createCube();
+		memcpy(amesh.mat.ambient, amb1, 4 * sizeof(float));
+		memcpy(amesh.mat.diffuse, diff1, 4 * sizeof(float));
+		memcpy(amesh.mat.specular, spec1, 4 * sizeof(float));
+		memcpy(amesh.mat.emissive, emissive, 4 * sizeof(float));
+		amesh.mat.shininess = shininess;
+		amesh.mat.texCount = texcount;
+		myMeshes.push_back(amesh);
+		//numObjects++;
+	};
+
+
 	
 	// some GL settings
 	glEnable(GL_DEPTH_TEST);
