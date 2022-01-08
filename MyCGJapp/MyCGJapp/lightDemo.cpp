@@ -184,8 +184,6 @@ class Car {
 				spotlights[i]->pos[2] = position[2] + marginZ[i];
 
 			}
-			
-			
 		}
 
 
