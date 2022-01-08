@@ -122,10 +122,15 @@ bool isSpotLightsOn = false;
 
 class Car {
 	public:
-		float position[3] = { 0.0f, 0.0f, 0.0f };
-		float velocity = 0.00f;
+		float position[3] = { 0.0f, 0.0f, 0.0f };  //41.5 no z para tar na rua
+		float minVelocity = 0.0f;
 		float maxVelocity = 0.05f;
-		float direction[3] = { 0.0f, 0.0f, 0.0f };
+		float velocity = 0.0f;
+		float direction[4] = { 1.0f, 0.0f, 0.0f, 0.0f };
+		float directionAngle = 0;
+		float rotationAngle = 1;
+		float isForward = true;
+		
 
 		Car() {};
 		void move() {
@@ -136,6 +141,21 @@ class Car {
 
 		void setVelocitity(float velocityNew) {
 			velocity = velocityNew;
+		}
+
+		void changeDirection(float isRight) {
+			float* newDir;
+			if (isRight) {
+				directionAngle -= rotationAngle;
+				newDir = rotateVec4(direction, -rotationAngle, 0, 1, 0);
+			}
+			else {
+				directionAngle += rotationAngle;
+				newDir = rotateVec4(direction, rotationAngle, 0, 1, 0);
+			}
+			for (int i = 0; i < 3; i++) {
+				direction[i] = newDir[i];
+			}
 		}
 
 		void setDirection(float newDirection[3]) {
@@ -319,7 +339,6 @@ void renderScene(void) {
 
 	keyOperations();
 	GLint loc;
-	//printf("i am always being called biacht\n");
 	FrameCount++;
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 	// load identity matrices
@@ -340,18 +359,18 @@ void renderScene(void) {
 		float res2[4];
 
 			for (int i = 0; i < 6; i++) {
-				printf("Point light = { %.1f, %.1f, %.1f, %.1f}\n", lightPos[i][0], lightPos[i][1], lightPos[i][2], lightPos[i][3]);
+				//printf("Point light = { %.1f, %.1f, %.1f, %.1f}\n", lightPos[i][0], lightPos[i][1], lightPos[i][2], lightPos[i][3]);
 				multMatrixPoint(VIEW, lightPos[i], res[i]);   //lightPos definido em World Coord so is converted to eye space
-				printf("WORLD COORDS Point light = { %.1f, %.1f, %.1f, %.1f}\n", res[i][0], res[i][1], res[i][2], res[i][3]);
+				//printf("WORLD COORDS Point light = { %.1f, %.1f, %.1f, %.1f}\n", res[i][0], res[i][1], res[i][2], res[i][3]);
 
 				glUniform4fv(lPos_uniformId[i], 1, res[i]);
 
 			}
-			printf("\n\n");		
+			//printf("\n\n");		
 		//printf("Directional light = { %.1f, %.1f, %.1f, %.1f}", directionalLight[0], directionalLight[1], directionalLight[2], directionalLight[3]);
 		
 		multMatrixPoint(VIEW, directionalLight, res2);   //lightPos definido em World Coord so is converted to eye space
-		printf("WORLD COORDS DIRECTIONAL light = { %.1f, %.1f, %.1f, %.1f}\n", res2[0], res2[1], res2[2], res2[3]);
+		//printf("WORLD COORDS DIRECTIONAL light = { %.1f, %.1f, %.1f, %.1f}\n", res2[0], res2[1], res2[2], res2[3]);
 		glUniform4fv(lDir_uniformId, 1, res2);
 		
 		
@@ -374,9 +393,9 @@ void renderScene(void) {
 			// TODO THIS IS SHIT I WANT THIS WHEN DEFINING THE VO in the init() func
 			// Values correspond to 0,0 on the table coords = wc
 			float torusY = 1.0f; //z in world coords
-			float carBodyX = 1.5f;
-			float carBodyY = 3.0f;
-			float jointCarGap = -0.5f;
+			float carBodyZ = 1.5f;
+			float carBodyX = 3.0f;
+			float jointCarGap = 0.5f;
 			
 			car.move();
 			float* position = car.position;
@@ -406,31 +425,47 @@ void renderScene(void) {
 				break;
 			case 3:
 				//car wheel torus RIGHT TOP
-				translate(MODEL, position[0] + carBodyY + jointCarGap, position[1] + torusY, position[2] + carBodyX);
+				translate(MODEL, position[0] + (carBodyZ)*sin(DegToRad(car.directionAngle)) + (carBodyX - jointCarGap) * cos(DegToRad(car.directionAngle)), position[1] + torusY, position[2] + carBodyZ * cos(DegToRad(car.directionAngle)) - (carBodyX - jointCarGap) * sin(DegToRad(car.directionAngle)));
+				rotate(MODEL, car.directionAngle, 0.0f, 1.0f, 0.0f);
+				//translate(MODEL, position[0] + carBodyX + jointCarGap, position[1] + torusY, position[2] + carBodyZ);
 				rotate(MODEL, 90.0f, 1.0f, 0.0f, 0.0f);
+
 				break;
 			case 4:
-				//car wheel torus RIGHT BOTTOM
-				translate(MODEL, position[0] + carBodyY + jointCarGap, position[1] + torusY, position[2]);
+				//car wheel torus LEFT TOP
+				translate(MODEL, position[0] + (carBodyX - jointCarGap )* cos(DegToRad(car.directionAngle)), position[1] + torusY, position[2] - (carBodyX - jointCarGap) * sin(DegToRad(car.directionAngle)));
+				rotate(MODEL, car.directionAngle, 0.0f, 1.0f, 0.0f);
+				//translate(MODEL, (position[0] + carBodyX - jointCarGap), position[1] + torusY, position[2]);
 				rotate(MODEL, 90.0f, 1.0f, 0.0f, 0.0f);
+
+
+				//translate(MODEL, (position[0] + carBodyY + jointCarGap) * cos(car.directionAngle * 3.14159265358979323846f / 180), position[1] + torusY, -(position[2] + carBodyY + jointCarGap) * sin(car.directionAngle * 3.14159265358979323846f / 180));
+				//*sin(car.directionAngle * 3.14159265358979323846f/180)
 				break;
 			case 5:
-				//car wheel torus LEFT TOP
-				translate(MODEL, position[0] - jointCarGap, position[1] + torusY, position[2] + carBodyX);
+				//car wheel torus RIGHT BOTTOM
+				
+				translate(MODEL, position[0] + carBodyZ * sin(DegToRad(car.directionAngle)) + (jointCarGap * cos(DegToRad(car.directionAngle))), position[1] + torusY, position[2] + (carBodyZ* cos(car.directionAngle * 3.14159265358979323846f / 180)) - (jointCarGap * sin(car.directionAngle * 3.14159265358979323846f / 180)));
+				rotate(MODEL, car.directionAngle, 0.0f, 1.0f, 0.0f);  
+				//translate(MODEL, position[0] + jointCarGap, position[1] + torusY, position[2] + carBodyX);
 				rotate(MODEL, 90.0f, 1.0f, 0.0f, 0.0f);
-				//rotate(MODEL, 90.0f, 1.0f, 0.0f, 0.0f);
 
 				break;
 			case 6:
 				//car wheel torus LEFT BOTTOM
-				translate(MODEL, position[0] + 0.0f - jointCarGap, position[1] + torusY, position[2]);
+
+				translate(MODEL, position[0] + jointCarGap * cos(DegToRad(car.directionAngle)), position[1] + torusY, position[2] - jointCarGap * sin(DegToRad(car.directionAngle)));
+				rotate(MODEL, car.directionAngle, 0.0f, 1.0f, 0.0f);
+				//translate(MODEL, (position[0] + jointCarGap), position[1] + torusY, position[2]);
 				rotate(MODEL, 90.0f, 1.0f, 0.0f, 0.0f);
 
 				break;
 			case 7:
 				//car body
 				translate(MODEL, position[0], position[1] + torusY - 0.2f, position[2]);
-				scale(MODEL, carBodyY, 0.5, carBodyX);
+				rotate(MODEL, car.directionAngle, 0.0f, 1.0f, 0.0f);
+				scale(MODEL, carBodyX, 0.5, carBodyZ);
+			
 				break;
 			}
 
@@ -581,10 +616,7 @@ void processKeys(unsigned char key, int xx, int yy)
 
 void keyOperations() {
 
-	float forward[3] = { 1.0f, 0.0f, 0.0f };
-	float backward[3] = { -1.0f, 0.0f, 0.0f };
-	float left[3] = { 0.0f, 0.0f, -1.0f };
-	float right[3] = { 0.0f, 0.0f, 1.0f };
+	float* direction = car.direction;
 
 	if (keyStates[27]) {
 		glutLeaveMainLoop();
@@ -593,23 +625,77 @@ void keyOperations() {
 	if (keyStates['q']) {
 		//move forward
 
-		car.velocity += 0.00016;
-		if (car.velocity > car.maxVelocity) {
-			car.velocity = car.maxVelocity;
+		if (car.isForward == false) {
+			car.velocity -= 0.00064;
+			if (car.velocity < 0) {
+				car.velocity = 0;
+				for (int i = 0; i < 3; i++) {
+					direction[i] = -direction[i];
+				}
+				car.isForward = true;
+			}
 		}
-
-		car.setDirection(forward);
+		else{
+			car.velocity += 0.00016;
+			if (car.velocity > car.maxVelocity) {
+				car.velocity = car.maxVelocity;
+			}
+		}
 		car.move();
 	}
 
 	if (keyStates['a']) {
 		//move backwards
-		car.velocity += 0.00016;
-		if (car.velocity > car.maxVelocity) {
-			car.velocity = car.maxVelocity;
+		if (car.isForward == true) {  //if car wants to go backward (similar to braking)
+			car.velocity -= 0.00064;
+			if (car.velocity < 0) {
+				car.velocity = 0;
+				for (int i = 0; i < 3; i++) {
+					direction[i] = -direction[i];
+				}
+				car.isForward = false;
+			}
 		}
-		car.setDirection(backward);
+		else {
+			car.velocity += 0.00016;
+			if (car.velocity > car.maxVelocity) {
+				car.velocity = car.maxVelocity;
+			}
+		}
 		car.move();
+	}
+
+	
+	if (keyStates['p'] && car.velocity > 0) {
+		//move left
+		if (!keyStates['q'] && !keyStates['a']) {
+			car.velocity -= 0.00016;
+			if (car.velocity < 0) {
+				car.velocity = 0;
+			}
+		}
+		if (car.isForward == true && car.velocity > 0) {
+			car.changeDirection(true);
+		}
+		else if (car.isForward == false && car.velocity > 0) {
+			car.changeDirection(false);
+		}
+	}
+
+	if (keyStates['o'] && car.velocity > 0) {
+		//move left
+		if (!keyStates['q'] && !keyStates['a']) {
+			car.velocity -= 0.00016;
+			if (car.velocity < 0) {
+				car.velocity = 0;
+			}
+		}
+		if (car.isForward == true && car.velocity > 0) {
+			car.changeDirection(false);
+		}
+		else if (car.isForward == false && car.velocity > 0) {
+			car.changeDirection(true);
+		}
 	}
 
 	for (int i = 0; i < 256; i++) {
@@ -689,6 +775,13 @@ void keyUp(unsigned char key, int x, int y) {
 		//ESTA ATRIBUICAO DE VALORES E FEITA AQUI POR CAUSA TO MOVIMENTO DE CAMERA ATRAVES DO RATO
 		alpha = -90.0f, beta = 0.0f;
 		cam3();
+
+		break;
+	case '4':
+		for (int i = 0; i < 3; i++) {
+			cout << "\ndir " << car.direction[i];
+		}
+		cout << "\nis Forward  " << car.isForward;
 
 		break;
 	default:
@@ -1089,5 +1182,3 @@ int main(int argc, char **argv) {
 
 	return(0);
 }
-
-
