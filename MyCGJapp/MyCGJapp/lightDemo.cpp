@@ -99,6 +99,7 @@ float roadWidth = 10;
 float roadTurn = 5;
 
 int numObjects = 0;
+int numButter = 5;
 int mapRoad[10][10] = { {1, 1, 1, 0, 0, 0, 0, 0, 0, 0},//1
 						{0, 0, 1, 0, 0, 1, 1, 1, 1, 1},//2
 						{0, 0, 1, 0, 0, 1, 0, 0, 0, 1},//3
@@ -228,8 +229,64 @@ public:
 	}
 };
 
+class Butter {
+public:
+	//const float velocityIncrease = 0.008f;
+	//const float veloctityIntervalIncrease = 0.001;
+	//float maxVelocity = 0.1f;
+	//float minVelocity = 0.01f;
+	float position[3] = { 0.0f, 1.5f, 0.0f };
+	//float velocity;
+	//float direction[3] = { 1.0f, 0.0f, 0.0f };
+	float rotationAngle = 0;
+
+	Butter() {
+		// set position random
+		randomPosition();
+		reset();
+	};
+	/*
+	void move() {
+		position[0] += direction[0] * velocity;
+		position[1] += direction[1] * velocity;
+		position[2] += direction[2] * velocity;
+	};
+	
+	void roll() {
+		rotationAngle = velocity * 10;
+	}
+	*/
+	//given a certain table size 
+	void randomPosition() {
+		position[0] = static_cast <float> (rand()) / (static_cast <float> (RAND_MAX / tableX));
+		position[2] = static_cast <float> (rand()) / (static_cast <float> (RAND_MAX / tableZ));
+	}
+
+	bool isOnTable() {
+		if (position[0] > tableX || position[0] < 0)
+			return false;
+
+		if (position[2] > tableZ || position[0] < 0)
+			return false;
+
+		return true;
+	}
+
+	void reset() {
+		randomPosition();
+	//	randomDirection();
+		//randomVelocity();
+	}
+};
+
 Car car;
 Orange orange;
+Butter butter1;
+Butter butter2;
+Butter butter3;
+Butter butter4;
+Butter butter5;
+Butter butter[5];
 
 float lookAtX = car.position[0];
 float lookAtY = car.position[1];
@@ -438,51 +495,17 @@ void renderScene(void) {
 				//car wheel torus LEFT BOTTOM
 				translate(MODEL, position[0] + 0.0f - jointCarGap, position[1] + torusY, position[2]);
 				rotate(MODEL, 90.0f, 1.0f, 0.0f, 0.0f);
-
 				break;
 			case 6:
 				//car body
 				translate(MODEL, position[0], position[1] + torusY - 0.2f, position[2]);
 				scale(MODEL, carBodyY, 0.5, carBodyX);
 				break;
-			case 7:
-				//butter
-				p = (float) (rand() / RAND_MAX) * 100;
-				q = (float) (rand() / RAND_MAX) * 100;
-				translate(MODEL, p, 0.5f, q);
-				scale(MODEL, 4, 2, 5);
-				break;
-			case 8:
-				//butter
-				p = (float) ((rand() / RAND_MAX) * 100);
-				q = (float) ((rand() / RAND_MAX) * 100);
-				translate(MODEL, p, 0.5f, q);
-				scale(MODEL, 4, 2,5);
-				break;
-			case 9:
-				//butter
-				p = (float) (rand() / RAND_MAX) * 100;
-				q = (float) (rand() / RAND_MAX) * 100;
-				translate(MODEL, p, 0.5f, q);
-				scale(MODEL, 4, 2, 5);
-				break;
-			case 10:
-				//butter
-				p = (float) (rand() / RAND_MAX) * 100;
-				q = (float) (rand() / RAND_MAX) * 100;
-				translate(MODEL, p, 0.5f, q);
-				scale(MODEL, 4, 2, 5);
-				break;
+			
+			
+			};
 
-			case 11:
-				//butter
-				p = (float) (rand() / RAND_MAX) * 100;
-				q = (float) (rand() / RAND_MAX) * 100;
-				translate(MODEL, p, 0.5f, q);
-				scale(MODEL, 4, 2, 5);
-				break;
-			}
-
+			
 			// send matrices to OGL
 			computeDerivedMatrix(PROJ_VIEW_MODEL);
 			glUniformMatrix4fv(vm_uniformId, 1, GL_FALSE, mCompMatrix[VIEW_MODEL]);
@@ -505,12 +528,60 @@ void renderScene(void) {
 		//}
 	}
 
+	for (int y = 0; y < numButter; y++) {
+		// send the material
+		loc = glGetUniformLocation(shader.getProgramIndex(), "mat.ambient");
+		glUniform4fv(loc, 1, myMeshes[objId].mat.ambient);
+		loc = glGetUniformLocation(shader.getProgramIndex(), "mat.diffuse");
+		glUniform4fv(loc, 1, myMeshes[objId].mat.diffuse);
+		loc = glGetUniformLocation(shader.getProgramIndex(), "mat.specular");
+		glUniform4fv(loc, 1, myMeshes[objId].mat.specular);
+		loc = glGetUniformLocation(shader.getProgramIndex(), "mat.shininess");
+		glUniform1f(loc, myMeshes[objId].mat.shininess);
+		pushMatrix(MODEL);
+
+		// TODO THIS IS SHIT I WANT THIS WHEN DEFINING THE VO in the init() func
+		// Values correspond to 0,0 on the table coords = wc
+		float torusY = 1.0f; //z in world coords
+		float carBodyX = 1.5f;
+		float carBodyY = 3.0f;
+		float jointCarGap = -0.5f;
+
+		car.move();
+		float* position = car.position;
+
+		//butter
+		translate(MODEL, butter[y].position[0], butter[y].position[1], butter[y].position[2]);
+		//scale(MODEL, 4, 2, 5);
+
+		// send matrices to OGL
+		computeDerivedMatrix(PROJ_VIEW_MODEL);
+		glUniformMatrix4fv(vm_uniformId, 1, GL_FALSE, mCompMatrix[VIEW_MODEL]);
+		glUniformMatrix4fv(pvm_uniformId, 1, GL_FALSE, mCompMatrix[PROJ_VIEW_MODEL]);
+		computeNormalMatrix3x3();
+		glUniformMatrix3fv(normal_uniformId, 1, GL_FALSE, mNormal3x3);
+
+		// Render mesh
+		glBindVertexArray(myMeshes[objId].vao);
+
+		if (!shader.isProgramValid()) {
+			printf("Program Not Valid!\n");
+			exit(1);
+		}
+		glDrawElements(myMeshes[objId].type, myMeshes[objId].numIndexes, GL_UNSIGNED_INT, 0);
+		glBindVertexArray(0);
+
+		popMatrix(MODEL);
+		objId++;
+
+	}
+
 	for (int j = 0; j < mapRows; j++) {
 		for (int k = 0; k < mapCols; k++) {
 			if (mapRoad[j][k] == 0) {
 				continue;
 			}
-			printf("numR:  %d", numRoads);
+			//printf("numR:  %d", numRoads);
 			// send the material
 			loc = glGetUniformLocation(shader.getProgramIndex(), "mat.ambient");
 			glUniform4fv(loc, 1, myMeshes[objId].mat.ambient);
@@ -962,9 +1033,9 @@ void init()
 	amesh.mat.texCount = texcount;
 	myMeshes.push_back(amesh);
 	numObjects++;
-
+	
 	//Butter
-	for (int i = 0; i < 5; i++) {
+	for (int i = 0; i < numButter; i++) {
 		amesh = createCube();
 		memcpy(amesh.mat.ambient, amb4, 4 * sizeof(float));
 		memcpy(amesh.mat.diffuse, diff, 4 * sizeof(float));
@@ -973,7 +1044,7 @@ void init()
 		amesh.mat.shininess = shininess;
 		amesh.mat.texCount = texcount;
 		myMeshes.push_back(amesh);
-		numObjects++;
+		//numObjects++;
 	};
 
 	// ROAD
