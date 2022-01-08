@@ -5,7 +5,7 @@ AVT Math Lib
  *
 ALL resulting matrices are in COLUMN ORDER
 
-Author: João Madeiras Pereira
+Author: Joï¿½o Madeiras Pereira
 ----------------------------------------------------*/
 
 #include "AVTmathLib.h"
@@ -17,12 +17,6 @@ Author: João Madeiras Pereira
 #ifdef _WIN32
 #define M_PI       3.14159265358979323846f
 #endif
-
-static inline float 
-DegToRad(float degrees) 
-{ 
-	return (float)(degrees * (M_PI / 180.0f));
-};
 
 /// Matrix stacks for all matrix types
 std::vector<float *> mMatrixStack[COUNT_MATRICES];
@@ -173,6 +167,51 @@ void rotate(MatrixTypes aType, float angle, float x, float y, float z)
 	mat[15]= 1.0f;
 
 	multMatrix(aType,mat);
+}
+
+float* rotateVec4(float vec4[4], float angle, float x, float y, float z)
+{
+	float mat[16];
+	float v[3];
+
+	v[0] = x;
+	v[1] = y;
+	v[2] = z;
+
+	float radAngle = DegToRad(angle);
+	float co = cos(radAngle);
+	float si = sin(radAngle);
+	normalize(v);
+	float x2 = v[0] * v[0];
+	float y2 = v[1] * v[1];
+	float z2 = v[2] * v[2];
+
+	//	mat[0] = x2 + (y2 + z2) * co; 
+	mat[0] = co + x2 * (1 - co);// + (y2 + z2) * co; 
+	mat[4] = v[0] * v[1] * (1 - co) - v[2] * si;
+	mat[8] = v[0] * v[2] * (1 - co) + v[1] * si;
+	mat[12] = 0.0f;
+
+	mat[1] = v[0] * v[1] * (1 - co) + v[2] * si;
+	//	mat[5] = y2 + (x2 + z2) * co;
+	mat[5] = co + y2 * (1 - co);
+	mat[9] = v[1] * v[2] * (1 - co) - v[0] * si;
+	mat[13] = 0.0f;
+
+	mat[2] = v[0] * v[2] * (1 - co) - v[1] * si;
+	mat[6] = v[1] * v[2] * (1 - co) + v[0] * si;
+	//	mat[10]= z2 + (x2 + y2) * co;
+	mat[10] = co + z2 * (1 - co);
+	mat[14] = 0.0f;
+
+	mat[3] = 0.0f;
+	mat[7] = 0.0f;
+	mat[11] = 0.0f;
+	mat[15] = 1.0f;
+
+	float res[4];
+	multMatrixPoint(mat, vec4, res);
+	return res;
 }
 
 // gluLookAt implementation
@@ -327,6 +366,19 @@ void multMatrixPoint(MatrixTypes aType, float *point, float *res) {
 		
 			res[i] += point[j] * mMatrix[aType][j*4 + i];
 		} 
+	}
+}
+
+void multMatrixPoint(float* mat, float* point, float* res) {
+
+	for (int i = 0; i < 4; ++i) {
+
+		res[i] = 0.0f;
+
+		for (int j = 0; j < 4; j++) {
+
+			res[i] += point[j] * mat[j * 4 + i];
+		}
 	}
 }
 
@@ -506,3 +558,7 @@ void shadow_matrix(float* m, float* plane, float* light)    //planar shadows
 	m[11] = -light[3] * plane[2];
 	m[15] = dot - light[3] * plane[3];
 }
+
+inline float DegToRad(float degrees){ 
+	return (float)(degrees * (M_PI / 180.0f));
+};

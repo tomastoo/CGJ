@@ -8,7 +8,7 @@
 // The code comes with no warranties, use it at your own risk.
 // You may use it, or parts of it, wherever you want.
 // 
-// Author: João Madeiras Pereira
+// Author: Joï¿½o Madeiras Pereira
 //
 
 #include <math.h>
@@ -34,6 +34,16 @@
 
 #include "avtFreeType.h"
 
+#ifdef _WIN32
+#define M_PI       3.14159265358979323846f
+#endif
+
+static inline float
+DegToRad(float degrees)
+{
+	return (float)(degrees * (M_PI / 180.0f));
+};
+
 using namespace std;
 
 #define CAPTION "CGJ Demo: Phong Shading and Text rendered with FreeType"
@@ -58,15 +68,21 @@ vector<struct MyMesh> myMeshes;
 /// The storage for matrices
 extern float mMatrix[COUNT_MATRICES][16];
 extern float mCompMatrix[COUNT_COMPUTED_MATRICES][16];
-
 /// The normal matrix
 extern float mNormal3x3[9];
+
+/// Array of boolean values of length 256 (0-255)
+bool* keyStates = new bool[256];
+void keyOperations();
 
 GLint pvm_uniformId;
 GLint vm_uniformId;
 GLint normal_uniformId;
-GLint lPos_uniformId;
+GLint lPos_uniformId[6];
 GLint lDir_uniformId;
+GLint slDir_uniformId[2];
+GLint slPos_uniformId[2];
+GLint slCutOffAngle_uniformId[2];
 GLint tex_loc, tex_loc1, tex_loc2;
 	
 // Camera Position
@@ -79,20 +95,37 @@ int startX, startY, tracking = 0;
 
 // Camera Spherical Coordinates
 float alpha = -90.0f, beta = 0.0f;
+float alpha_cam3 = -90.0f, beta_cam3 = 0.0f;
+
 
 float r = 10.0f;
 
 // Frame counting and FPS computation
 long myTime,timebase = 0,frame = 0;
 char s[32];
-float lightPos[4] = {4.0f, 6.0f, 2.0f, 1.0f};
 float tableX = 100;
 float tableY = 0.5;
 float tableZ = 100;
-float lightDir[4] = { tableX / 2, tableY, tableZ / 2, 0.0f };
+
+float lightDir[4] = { tableX / 2, tableY , tableZ / 2, 0.0f };
 float nolightDir[4] = { 0.0f, 0.0f, 0.0f, 0.0f };
+
+float pointLightsHight = 2.f;
+
+const float plGrid[2] = { 4,3 }; // This means that the point lights will be devided 
+						// |_|_|_|_| like this so the first value is the number of 
+						// |_|_|_|_| collumns and the second is the number of rows 
+						// |_|_|_|_| (x,z)
+					
+
+float lightPos[6][4] = {{tableX / plGrid[0], tableY + pointLightsHight, tableZ / plGrid[1], 0.0f},
+						{(tableX / plGrid[0]) * 2, tableY + pointLightsHight, (tableZ / plGrid[1]), 0.0f},
+						{(tableX / plGrid[0]) * 3, tableY + pointLightsHight, (tableZ / plGrid[1]), 0.0f}, 
+						{(tableX / plGrid[0]), tableY + pointLightsHight, (tableZ / plGrid[1]) * 2, 0.0f}, 
+						{(tableX / plGrid[0]) * 2, tableY + pointLightsHight, (tableZ / plGrid[1]) * 2, 0.0f},
+						{(tableX / plGrid[0]) * 3, tableY + pointLightsHight, (tableZ / plGrid[1]) * 2, 0.0f}, };
+
 float* directionalLight = nolightDir;
-bool isGlobalLightOn = false;
 
 float roadWidth = 10;
 //float roadTurn = sqrt((roadWidth * roadWidth) + (roadWidth * roadWidth));
@@ -142,20 +175,104 @@ class RoadID {
 
 };
 */
+bool isDirectionalLightOn = false;
+bool isPointLightsOn = false;
+bool isSpotLightsOn = false;
+
+
+struct Spotlight
+{
+	float pos[4];
+	float dir[4];
+	float ang;
+};
 class Car {
 	public:
-		float position[3] = { 0.0f, 0.0f, 0.0f };
-		float velocity = 0.01f;
-		float direction[3] = { 1.0f, 0.0f, 0.0f };
+		float position[3] = { 0.0f, 0.0f, 0.0f };  //41.5 no z para tar na rua
+		float minVelocity = 0.0f;
+		float maxVelocity = 0.05f;
+		float velocity = 0.0f;
+		float direction[4] = { 1.0f, 0.0f, 0.0f, 0.0f };
+		float directionAngle = 0;
+		float rotationAngle = 1;
+		float isForward = true;
+		struct Spotlight *spotlights[2];
+		
+		float torusY = 1.0f; //z in world coords
+		float carBodyX = 1.5f;
+		float carBodyY = 3.0f;
+		float jointCarGap = -0.5f;
 
-		Car() {};
+		Car() {
+			for (int i = 0; i < 2; i++) {
+				spotlights[i] = new Spotlight;
+
+				// SPOTLIGHTS CUT OFF ANGLE OF CONE 
+				spotlights[i]->ang = cos(DegToRad(10.f));
+				// W
+				spotlights[i]->pos[3] = 0.f;
+			}
+			updateSpotlights();
+		};
+
+		void updateSpotlights() {
+			float marginX[2] = { carBodyY + 3, carBodyY + 3 };
+			float marginY[2] = { 5.f, 5.f };
+			float marginZ[2] = { 0.f, carBodyX};
+
+			for (int i = 0; i < 2; i++) {
+				// SPOTLIGHTS DIRECTION
+				for (int j = 0; j < 3; j++) {
+					spotlights[i]->dir[j] = direction[j];
+				}
+				spotlights[i]->dir[3] = 0;
+
+				// SPOTLIGHTS POSITION 
+				// X
+				spotlights[i]->pos[0] = position[0] + marginX[i];
+				// Y
+				spotlights[i]->pos[1] = position[1] + marginY[i];
+				// Z
+				spotlights[i]->pos[2] = position[2] + marginZ[i];
+
+			}
+		}
+
+
 		void move() {
 			position[0] += direction[0] * velocity;
 			position[1] += direction[1] * velocity;
 			position[2] += direction[2] * velocity;
+			updateSpotlights();
 		};
+
+
 		void setVelocitity(float velocityNew) {
 			velocity = velocityNew;
+		}
+
+		void changeDirection(float isRight) {
+			float* newDir;
+			if (isRight) {
+				alpha_cam3 -= rotationAngle;
+				directionAngle -= rotationAngle;
+				newDir = rotateVec4(direction, -rotationAngle, 0, 1, 0);
+			}
+			else {
+				directionAngle += rotationAngle;
+				alpha_cam3 += rotationAngle;
+				newDir = rotateVec4(direction, rotationAngle, 0, 1, 0);
+			}
+			for (int i = 0; i < 3; i++) {
+				direction[i] = newDir[i];
+			}
+			updateSpotlights();
+		}
+
+		void setDirection(float newDirection[3]) {
+			direction[0] = newDirection[0];
+			direction[1] = newDirection[1];
+			direction[2] = newDirection[2];
 		}
 };
 
@@ -370,8 +487,8 @@ void cam3() {
 
 	float inclination = 55.f;
 	float hight = 10;
-	camX = r * sin(alpha * 3.14f / 180.0f) * cos(beta * 3.14f / 180.0f) + car.position[0];
-	camZ = r * cos(alpha * 3.14f / 180.0f) * cos(beta * 3.14f / 180.0f) + car.position[2];
+	camX = r * sin(alpha_cam3 * 3.14f / 180.0f) * cos(beta_cam3 * 3.14f / 180.0f) + car.position[0];
+	camZ = r * cos(alpha_cam3 * 3.14f / 180.0f) * cos(beta_cam3 * 3.14f / 180.0f) + car.position[2];
 	camY = r * sin(inclination * 3.14f / 180.0f) + hight;
 
 	lookAtX = car.position[0];
@@ -387,8 +504,8 @@ void cam3() {
 
 void renderScene(void) {
 
+	keyOperations();
 	GLint loc;
-	//printf("i am always being called biacht\n");
 	FrameCount++;
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 	// load identity matrices
@@ -402,26 +519,58 @@ void renderScene(void) {
 	// use our shader
 	glUseProgram(shader.getProgramIndex());
 
-		//send the light position in eye coordinates
-		//glUniform4fv(lPos_uniformId, 1, lightPos); //efeito capacete do mineiro, ou seja lighPos foi definido em eye coord 
+	//send the light position in eye coordinates
+	//glUniform4fv(lPos_uniformId, 1, lightPos); //efeito capacete do mineiro, ou seja lighPos foi definido em eye coord 
 
-		float res[4];
-		float res2[4];
-		multMatrixPoint(VIEW, lightPos, res);   //lightPos definido em World Coord so is converted to eye space
-		//printf("lPos_uniformId = %" );
+	float res[6][4];
+	float res2[4];
 
-		glUniform4fv(lPos_uniformId, 1, res);
-		
-//		printf("Directional light = { %.1f, %.1f, %.1f, %.1f}", directionalLight[0], directionalLight[1], directionalLight[2], directionalLight[3]);
-		
-		//multMatrixPoint(VIEW, directionalLight, res2);   //lightPos definido em World Coord so is converted to eye space
-		//printf("Directional light = { %.1f, %.1f, %.1f, %.1f}", res2[0], res2[1], res2[2], res2[3]);
-		//glUniform4fv(lDir_uniformId, 1, res2);
+	for (int i = 0; i < 6; i++) {
+		//printf("Point light = { %.1f, %.1f, %.1f, %.1f}\n", lightPos[i][0], lightPos[i][1], lightPos[i][2], lightPos[i][3]);
+		multMatrixPoint(VIEW, lightPos[i], res[i]);   //lightPos definido em World Coord so is converted to eye space
+		//printf("WORLD COORDS Point light = { %.1f, %.1f, %.1f, %.1f}\n", res[i][0], res[i][1], res[i][2], res[i][3]);
+		//printf("Point light uniform ID= { %d }\n", lPos_uniformId[i]);
 
-		//printf("Directional light = { %.1f, %.1f, %.1f, %.1f}", directionalLight[0], directionalLight[1], directionalLight[2], directionalLight[3]);
-		glUniform4fv(lDir_uniformId, 1, directionalLight);
+		glUniform4fv(lPos_uniformId[i], 1, res[i]);
+
+	}
+	//printf("\n\n");		
+	//printf("Directional light = { %.1f, %.1f, %.1f, %.1f}", directionalLight[0], directionalLight[1], directionalLight[2], directionalLight[3]);
 		
+	multMatrixPoint(VIEW, directionalLight, res2);   //lightPos definido em World Coord so is converted to eye space
+	//printf("WORLD COORDS DIRECTIONAL light = { %.1f, %.1f, %.1f, %.1f}\n", res2[0], res2[1], res2[2], res2[3]);
+	glUniform4fv(lDir_uniformId, 1, res2);
 		
+	//printf("spotlight direction = { %.1f, %.1f, %.1f, %.1f}\n", car.spotlights[0]->dir[0], car.spotlights[0]->dir[1], car.spotlights[0]->dir[2], car.spotlights[0]->dir[3]);
+	//printf("spotlight position = { %.1f, %.1f, %.1f, %.1f}\n", car.spotlights[0]->pos[0], car.spotlights[0]->pos[1], car.spotlights[0]->pos[2], car.spotlights[0]->pos[3]);
+	//printf("spotlight cut angle = { %.10f }\n", car.spotlights[0]->ang);
+
+	multMatrixPoint(VIEW, car.spotlights[0]->dir, res2);
+	//printf("spotlight 0 dir = { %.1f, %.1f, %.1f, %.1f}\n", res2[0], res2[1], res2[2], res2[3]);
+	glUniform4fv(slDir_uniformId[0], 1, res2);
+
+
+
+	multMatrixPoint(VIEW, car.spotlights[1]->dir, res2);
+	//printf("spotlight dir= { %.1f, %.1f, %.1f, %.1f}\n", car.spotlights[1]->dir[0], car.spotlights[1]->dir[1], car.spotlights[1]->dir[2], car.spotlights[1]->dir[3]);
+	//printf("spotlight dir res = { %.1f, %.1f, %.1f, %.1f}\n", res2[0], res2[1], res2[2], res2[3]);
+	glUniform4fv(slDir_uniformId[1], 1, res2);
+
+
+	multMatrixPoint(VIEW, car.spotlights[0]->pos, res2);
+	//printf("spotlight 0 pos = { %.1f, %.1f, %.1f, %.1f}\n", res2[0], res2[1], res2[2], res2[3]);
+	glUniform4fv(slPos_uniformId[0], 1, res2);
+
+
+	multMatrixPoint(VIEW, car.spotlights[1]->pos, res2);
+	//printf("spotlight 1 pos = { %.1f, %.1f, %.1f, %.1f}\n", car.spotlights[1]->pos[0], car.spotlights[1]->pos[1], car.spotlights[1]->pos[2], car.spotlights[1]->pos[3]);
+	//printf("spotlight 1 pos res = { %.1f, %.1f, %.1f, %.1f}\n", res2[0], res2[1], res2[2], res2[3]);
+	glUniform4fv(slPos_uniformId[1], 1, res2);
+	
+
+	glUniform4fv(slCutOffAngle_uniformId[0], 1, &car.spotlights[0]->ang);
+	glUniform4fv(slCutOffAngle_uniformId[1], 1, &car.spotlights[1]->ang);
+
 	int objId=0; //id of the object mesh - to be used as index of mesh: Mymeshes[objID] means the current mesh
 	for (int i = 0 ; i < numObjects; ++i) {
 //		for (int j = 0; j < 2; ++j) {
@@ -440,9 +589,9 @@ void renderScene(void) {
 			// TODO THIS IS SHIT I WANT THIS WHEN DEFINING THE VO in the init() func
 			// Values correspond to 0,0 on the table coords = wc
 			float torusY = 1.0f; //z in world coords
-			float carBodyX = 1.5f;
-			float carBodyY = 3.0f;
-			float jointCarGap = -0.5f;
+			float carBodyZ = 1.5f;
+			float carBodyX = 3.0f;
+			float jointCarGap = 0.5f;
 			
 			//car.move();
 			float* position = car.position;
@@ -476,30 +625,46 @@ void renderScene(void) {
 				break;
 			case 2:
 				//car wheel torus RIGHT TOP
-				translate(MODEL, position[0] + carBodyY + jointCarGap, position[1] + torusY, position[2] + carBodyX);
+				translate(MODEL, position[0] + (carBodyZ)*sin(DegToRad(car.directionAngle)) + (carBodyX - jointCarGap) * cos(DegToRad(car.directionAngle)), position[1] + torusY, position[2] + carBodyZ * cos(DegToRad(car.directionAngle)) - (carBodyX - jointCarGap) * sin(DegToRad(car.directionAngle)));
+				rotate(MODEL, car.directionAngle, 0.0f, 1.0f, 0.0f);
+				//translate(MODEL, position[0] + carBodyX + jointCarGap, position[1] + torusY, position[2] + carBodyZ);
 				rotate(MODEL, 90.0f, 1.0f, 0.0f, 0.0f);
+
 				break;
 			case 3:
-				//car wheel torus RIGHT BOTTOM
-				translate(MODEL, position[0] + carBodyY + jointCarGap, position[1] + torusY, position[2]);
-				rotate(MODEL, 90.0f, 1.0f, 0.0f, 0.0f);
-				break;
-			case 4:
 				//car wheel torus LEFT TOP
-				translate(MODEL, position[0] - jointCarGap, position[1] + torusY, position[2] + carBodyX);
+				translate(MODEL, position[0] + (carBodyX - jointCarGap) * cos(DegToRad(car.directionAngle)), position[1] + torusY, position[2] - (carBodyX - jointCarGap) * sin(DegToRad(car.directionAngle)));
+				rotate(MODEL, car.directionAngle, 0.0f, 1.0f, 0.0f);
+				//translate(MODEL, (position[0] + carBodyX - jointCarGap), position[1] + torusY, position[2]);
 				rotate(MODEL, 90.0f, 1.0f, 0.0f, 0.0f);
-				//rotate(MODEL, 90.0f, 1.0f, 0.0f, 0.0f);
+
+				//translate(MODEL, (position[0] + carBodyY + jointCarGap) * cos(car.directionAngle * 3.14159265358979323846f / 180), position[1] + torusY, -(position[2] + carBodyY + jointCarGap) * sin(car.directionAngle * 3.14159265358979323846f / 180));
+				//*sin(car.directionAngle * 3.14159265358979323846f/180)
+				break;
+
+			case 4:
+				//car wheel torus RIGHT BOTTOM
+				
+				translate(MODEL, position[0] + carBodyZ * sin(DegToRad(car.directionAngle)) + (jointCarGap * cos(DegToRad(car.directionAngle))), position[1] + torusY, position[2] + (carBodyZ* cos(car.directionAngle * 3.14159265358979323846f / 180)) - (jointCarGap * sin(car.directionAngle * 3.14159265358979323846f / 180)));
+				rotate(MODEL, car.directionAngle, 0.0f, 1.0f, 0.0f);  
+				//translate(MODEL, position[0] + jointCarGap, position[1] + torusY, position[2] + carBodyX);
+				rotate(MODEL, 90.0f, 1.0f, 0.0f, 0.0f);
 
 				break;
 			case 5:
 				//car wheel torus LEFT BOTTOM
-				translate(MODEL, position[0] + 0.0f - jointCarGap, position[1] + torusY, position[2]);
+
+				translate(MODEL, position[0] + jointCarGap * cos(DegToRad(car.directionAngle)), position[1] + torusY, position[2] - jointCarGap * sin(DegToRad(car.directionAngle)));
+				rotate(MODEL, car.directionAngle, 0.0f, 1.0f, 0.0f);
+				//translate(MODEL, (position[0] + jointCarGap), position[1] + torusY, position[2]);
 				rotate(MODEL, 90.0f, 1.0f, 0.0f, 0.0f);
 				break;
 			case 6:
 				//car body
 				translate(MODEL, position[0], position[1] + torusY - 0.2f, position[2]);
-				scale(MODEL, carBodyY, 0.5, carBodyX);
+				rotate(MODEL, car.directionAngle, 0.0f, 1.0f, 0.0f);
+				scale(MODEL, carBodyX, 0.5, carBodyZ);
+			
 				break;
 			
 			
@@ -687,19 +852,47 @@ void processKeys(unsigned char key, int xx, int yy)
 		case 27:
 			glutLeaveMainLoop();
 			break;
-		case 'c': 
-			printf("Camera Spherical Coordinates (%f, %f, %f)\n", alpha, beta, r);
+		case 'c': // POINTING LIGHTS --> LUZES PARA ILUMINAR A MESA
+			//printf("Camera Spherical Coordinates (%f, %f, %f)\n", alpha, beta, r);
+			if (isPointLightsOn) {
+				for (int i = 0; i < 6; i++) {
+					lightPos[i][3] = 0.0f;
+				}
+				isPointLightsOn = false;
+			}
+			else {
+				for (int i = 0; i < 6; i++) {
+					lightPos[i][3] = 1.0f;
+				}
+				isPointLightsOn = true;
+			}
 			break;
 		case 'm': glEnable(GL_MULTISAMPLE); break;
-		case 'n': /*glDisable(GL_MULTISAMPLE);*/ 
-			if (isGlobalLightOn) {
+		case 'n': /*glDisable(GL_MULTISAMPLE);*/
+			// DIRECTIONAL LIGHT --> ILUMINACAO GERAL TIPO DIA E NOITE
+			if (isDirectionalLightOn) {
 				directionalLight = nolightDir;
-				isGlobalLightOn = false;
-			}				
+				isDirectionalLightOn = false;
+			}
 			else {
 				directionalLight = lightDir;
-				isGlobalLightOn = true;
-			}			
+				isDirectionalLightOn = true;
+			}
+			break;
+		case 'h':
+			// SPOTLIGHTS --> ILUMINACAO COMO SE FOSSE AS LUZES FRONTEIRAS DO CARRO
+			if (isSpotLightsOn) {
+				for (int i = 0; i < 2; i++) {
+					car.spotlights[i]->pos[3] = 0.0f;
+				}
+				isSpotLightsOn = false;
+			}
+			else {
+				for (int i = 0; i < 2; i++) {
+					car.spotlights[i]->pos[3] = 1.0f;
+				}
+				isSpotLightsOn = true;
+			}
 			break;
 		case '1': 
 			alpha = 0.0f;
@@ -726,7 +919,191 @@ void processKeys(unsigned char key, int xx, int yy)
 	}
 }
 
+//
+// Events from the Keyboard
+//
 
+void keyOperations() {
+
+	float* direction = car.direction;
+
+	if (keyStates[27]) {
+		glutLeaveMainLoop();
+	}
+
+	if (keyStates['q']) {
+		//move forward
+
+		if (car.isForward == false) {
+			car.velocity -= 0.00064;
+			if (car.velocity < 0) {
+				car.velocity = 0;
+				for (int i = 0; i < 3; i++) {
+					direction[i] = -direction[i];
+				}
+				car.isForward = true;
+			}
+		}
+		else{
+			car.velocity += 0.00016;
+			if (car.velocity > car.maxVelocity) {
+				car.velocity = car.maxVelocity;
+			}
+		}
+		car.move();
+	}
+
+	if (keyStates['a']) {
+		//move backwards
+		if (car.isForward == true) {  //if car wants to go backward (similar to braking)
+			car.velocity -= 0.00064;
+			if (car.velocity < 0) {
+				car.velocity = 0;
+				for (int i = 0; i < 3; i++) {
+					direction[i] = -direction[i];
+				}
+				car.isForward = false;
+			}
+		}
+		else {
+			car.velocity += 0.00016;
+			if (car.velocity > car.maxVelocity) {
+				car.velocity = car.maxVelocity;
+			}
+		}
+		car.move();
+	}
+
+	
+	if (keyStates['p'] && car.velocity > 0) {
+		//move left
+		if (!keyStates['q'] && !keyStates['a']) {
+			car.velocity -= 0.00016;
+			if (car.velocity < 0) {
+				car.velocity = 0;
+			}
+		}
+		if (car.isForward == true && car.velocity > 0) {
+			car.changeDirection(true);
+		}
+		else if (car.isForward == false && car.velocity > 0) {
+			car.changeDirection(false);
+		}
+	}
+
+	if (keyStates['o'] && car.velocity > 0) {
+		//move left
+		if (!keyStates['q'] && !keyStates['a']) {
+			car.velocity -= 0.00016;
+			if (car.velocity < 0) {
+				car.velocity = 0;
+			}
+		}
+		if (car.isForward == true && car.velocity > 0) {
+			car.changeDirection(false);
+		}
+		else if (car.isForward == false && car.velocity > 0) {
+			car.changeDirection(true);
+		}
+	}
+
+	for (int i = 0; i < 256; i++) {
+		if (keyStates[i] == true) {
+			return;
+		}
+	}
+
+	car.velocity -= 0.00016;
+	if (car.velocity < 0) {
+		car.velocity = 0;
+	}
+	else if (car.velocity > car.maxVelocity) {
+		car.velocity = car.maxVelocity;
+	}
+
+}
+
+void keyPressed(unsigned char key, int xx, int yy) {
+
+	keyStates[key] = true;
+}
+
+void keyUp(unsigned char key, int x, int y) {
+	switch (key) {
+	case 'c': // POINTING LIGHTS --> LUZES PARA ILUMINAR A MESA
+		//printf("Camera Spherical Coordinates (%f, %f, %f)\n", alpha, beta, r);
+		if (isPointLightsOn) {
+			for (int i = 0; i < 6; i++) {
+				lightPos[i][3] = 0.0f;
+			}
+			isPointLightsOn = false;
+		}
+		else {
+			for (int i = 0; i < 6; i++) {
+				lightPos[i][3] = 1.0f;
+			}
+			isPointLightsOn = true;
+		}
+		break;
+	case 'n': /*glDisable(GL_MULTISAMPLE);*/
+		// DIRECTIONAL LIGHT --> ILUMINACAO GERAL TIPO DIA E NOITE
+		if (isDirectionalLightOn) {
+			directionalLight = nolightDir;
+			isDirectionalLightOn = false;
+		}
+		else {
+			directionalLight = lightDir;
+			isDirectionalLightOn = true;
+		}
+		break;
+	case 'h':
+		// SPOTLIGHTS --> ILUMINACAO COMO SE FOSSE AS LUZES FRONTEIRAS DO CARRO
+			// SPOTLIGHTS --> ILUMINACAO COMO SE FOSSE AS LUZES FRONTEIRAS DO CARRO
+		if (isSpotLightsOn) {
+			for (int i = 0; i < 2; i++) {
+				car.spotlights[i]->pos[3] = 0.0f;
+			}
+			isSpotLightsOn = false;
+		}
+		else {
+			for (int i = 0; i < 2; i++) {
+				car.spotlights[i]->pos[3] = 1.0f;
+			}
+			isSpotLightsOn = true;
+		}
+		break;
+	case '1':
+		alpha = 0.0f;
+		beta = 90.0f;
+		cout << "tecla carregada = " << key;
+		cam1();
+		break;
+	case '2':
+		alpha = 0.0f;
+		beta = 90.0f;
+		cout << "tecla carregada = " << key;
+		cam2();
+		break;
+	case '3':
+		cout << "tecla carregada = " << key;
+		//ESTA ATRIBUICAO DE VALORES E FEITA AQUI POR CAUSA TO MOVIMENTO DE CAMERA ATRAVES DO RATO
+		alpha = -90.0f, beta = 0.0f;
+		cam3();
+
+		break;
+	case '4':
+		for (int i = 0; i < 3; i++) {
+			cout << "\ndir " << car.direction[i];
+		}
+		cout << "\nis Forward  " << car.isForward;
+
+		break;
+	default:
+		cout << "tecla carregada = " << key;
+		break;
+	}
+	keyStates[key] = false;
+}
 
 
 // ------------------------------------------------------------
@@ -767,7 +1144,8 @@ void processMouseMotion(int xx, int yy)
 {
 
 	int deltaX, deltaY;
-	float alphaAux, betaAux;
+	float alphaAux = 0;
+	float betaAux = 0;
 	float rAux;
 	float slowDown = 0.2f;
 	deltaX =  (- xx + startX) * slowDown;
@@ -862,8 +1240,25 @@ GLuint setupShaders() {
 	pvm_uniformId = glGetUniformLocation(shader.getProgramIndex(), "m_pvm");
 	vm_uniformId = glGetUniformLocation(shader.getProgramIndex(), "m_viewModel");
 	normal_uniformId = glGetUniformLocation(shader.getProgramIndex(), "m_normal");
-	lPos_uniformId = glGetUniformLocation(shader.getProgramIndex(), "l_pos");
+
+	lPos_uniformId[0] = glGetUniformLocation(shader.getProgramIndex(), "l_pos[0]");
+	lPos_uniformId[1] = glGetUniformLocation(shader.getProgramIndex(), "l_pos[1]");
+	lPos_uniformId[2] = glGetUniformLocation(shader.getProgramIndex(), "l_pos[2]");
+	lPos_uniformId[3] = glGetUniformLocation(shader.getProgramIndex(), "l_pos[3]");
+	lPos_uniformId[4] = glGetUniformLocation(shader.getProgramIndex(), "l_pos[4]");
+	lPos_uniformId[5] = glGetUniformLocation(shader.getProgramIndex(), "l_pos[5]");
+	
 	lDir_uniformId = glGetUniformLocation(shader.getProgramIndex(), "l_dir");
+	
+	slDir_uniformId[0] = glGetUniformLocation(shader.getProgramIndex(), "sl_dir[0]");
+	slDir_uniformId[1] = glGetUniformLocation(shader.getProgramIndex(), "sl_dir[1]");
+
+	slPos_uniformId[0] = glGetUniformLocation(shader.getProgramIndex(), "sl_pos[0]");
+	slPos_uniformId[1] = glGetUniformLocation(shader.getProgramIndex(), "sl_pos[1]");
+
+	slCutOffAngle_uniformId[0] = glGetUniformLocation(shader.getProgramIndex(), "sl_cut_off_ang[0]");
+	slCutOffAngle_uniformId[1] = glGetUniformLocation(shader.getProgramIndex(), "sl_cut_off_ang[1]");
+
 	tex_loc = glGetUniformLocation(shader.getProgramIndex(), "texmap");
 	tex_loc1 = glGetUniformLocation(shader.getProgramIndex(), "texmap1");
 	tex_loc2 = glGetUniformLocation(shader.getProgramIndex(), "texmap2");
@@ -912,6 +1307,10 @@ void init()
 	srand(static_cast <unsigned> (time(0)));
 
 	MyMesh amesh;
+
+	for (int i = 0; i < 256; i++) {
+		keyStates[i] = false;
+	}
 
 	/* Initialization of DevIL */
 	if (ilGetInteger(IL_VERSION_NUM) < IL_VERSION)
@@ -1103,7 +1502,9 @@ int main(int argc, char **argv) {
 
 
 //	Mouse and Keyboard Callbacks
-	glutKeyboardFunc(processKeys);
+
+	glutKeyboardFunc(keyPressed);
+	glutKeyboardUpFunc(keyUp);
 	glutMouseFunc(processMouseButtons);
 	glutMotionFunc(processMouseMotion);
 	glutMouseWheelFunc ( mouseWheel ) ;
@@ -1131,6 +1532,3 @@ int main(int argc, char **argv) {
 
 	return(0);
 }
-
-
-

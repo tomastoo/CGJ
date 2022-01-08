@@ -13,6 +13,7 @@
 #ifndef __AVTmathLib__
 #define __AVTmathLib__
 
+
 #include <vector>
 #include <string>
 #include <GL/glew.h>
@@ -55,6 +56,7 @@
 		  * \param x,y,z rotation axis in degrees
 		*/
 		void rotate(MatrixTypes aType, float angle, float x, float y, float z);
+		float* rotateVec4(float vec4[4], float angle, float x, float y, float z);
 
 		/** Similar to glLoadIdentity.
 		  *
@@ -68,6 +70,8 @@
 		  * \param aMatrix matrix in column major order data, float[16]
 		*/
 		void multMatrix(MatrixTypes aType, float *aMatrix);
+
+		void multMatrixPoint(float* mat, float* point, float* res);
 
 		//resMatrix = resMatrix * aMatrix
 		void multMatrix(float *resMatrix, float *aMatrix);
@@ -212,5 +216,7 @@
 		bool project(float* objCoord, float* windowCoord, int* m_viewport);
 
 		void shadow_matrix(float* mat, float* plane, float* light);   //for planar shadows
+
+		inline float DegToRad(float degrees);
 
 #endif
