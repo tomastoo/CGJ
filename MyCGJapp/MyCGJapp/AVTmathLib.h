@@ -213,4 +213,6 @@
 
 		void shadow_matrix(float* mat, float* plane, float* light);   //for planar shadows
 
+		inline float DegToRad(float degrees);
+
 #endif

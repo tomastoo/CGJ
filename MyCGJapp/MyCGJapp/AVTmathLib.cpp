@@ -5,7 +5,7 @@ AVT Math Lib
  *
 ALL resulting matrices are in COLUMN ORDER
 
-Author: João Madeiras Pereira
+Author: Joï¿½o Madeiras Pereira
 ----------------------------------------------------*/
 
 #include "AVTmathLib.h"
@@ -17,12 +17,6 @@ Author: João Madeiras Pereira
 #ifdef _WIN32
 #define M_PI       3.14159265358979323846f
 #endif
-
-static inline float 
-DegToRad(float degrees) 
-{ 
-	return (float)(degrees * (M_PI / 180.0f));
-};
 
 /// Matrix stacks for all matrix types
 std::vector<float *> mMatrixStack[COUNT_MATRICES];
@@ -506,3 +500,7 @@ void shadow_matrix(float* m, float* plane, float* light)    //planar shadows
 	m[11] = -light[3] * plane[2];
 	m[15] = dot - light[3] * plane[3];
 }
+
+inline float DegToRad(float degrees){ 
+	return (float)(degrees * (M_PI / 180.0f));
+};
