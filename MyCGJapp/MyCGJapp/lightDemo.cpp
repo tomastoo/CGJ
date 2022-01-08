@@ -34,6 +34,16 @@
 
 #include "avtFreeType.h"
 
+#ifdef _WIN32
+#define M_PI       3.14159265358979323846f
+#endif
+
+static inline float
+DegToRad(float degrees)
+{
+	return (float)(degrees * (M_PI / 180.0f));
+};
+
 using namespace std;
 
 #define CAPTION "CGJ Demo: Phong Shading and Text rendered with FreeType"
@@ -70,6 +80,9 @@ GLint vm_uniformId;
 GLint normal_uniformId;
 GLint lPos_uniformId[6];
 GLint lDir_uniformId;
+GLint slDir_uniformId[2];
+GLint slPos_uniformId[2];
+GLint slCutOffAngle_uniformId[2];
 GLint tex_loc, tex_loc1, tex_loc2;
 	
 // Camera Position
@@ -118,21 +131,70 @@ bool isPointLightsOn = false;
 bool isSpotLightsOn = false;
 
 
-
+struct Spotlight
+{
+	float pos[4];
+	float dir[4];
+	float ang;
+};
 
 class Car {
 	public:
 		float position[3] = { 0.0f, 0.0f, 0.0f };
 		float velocity = 0.00f;
 		float maxVelocity = 0.05f;
-		float direction[3] = { 0.0f, 0.0f, 0.0f };
+		float direction[3] = { 1.0f, 0.0f, 0.0f };
+		struct Spotlight *spotlights[2];
+		
+		float torusY = 1.0f; //z in world coords
+		float carBodyX = 1.5f;
+		float carBodyY = 3.0f;
+		float jointCarGap = -0.5f;
 
-		Car() {};
+		Car() {
+			for (int i = 0; i < 2; i++) {
+				spotlights[i] = new Spotlight;
+
+				// SPOTLIGHTS CUT OFF ANGLE OF CONE 
+				spotlights[i]->ang = cos(DegToRad(12.5f));
+			}
+			updateSpotlights();
+		};
+
+		void updateSpotlights() {
+			float marginX[2] = { carBodyX, carBodyX };
+			float marginY[2] = { 0.f, 0.f };
+			float marginZ[2] = { 0.f, carBodyY};
+
+			for (int i = 0; i < 2; i++) {
+				// SPOTLIGHTS DIRECTION
+				for (int j = 0; j < 3; j++) {
+					spotlights[i]->dir[j] = direction[j];
+				}
+				spotlights[i]->dir[3] = 0;
+
+				// SPOTLIGHTS POSITION 
+				// X
+				spotlights[i]->pos[0] = position[0] + marginX[i];
+				// Y
+				spotlights[i]->pos[1] = position[1] + marginY[i];
+				// Z
+				spotlights[i]->pos[2] = position[2] + marginZ[i];
+				// W
+				spotlights[i]->pos[3] = 1.f;
+			}
+			
+			
+		}
+
+
 		void move() {
 			position[0] += direction[0] * velocity;
 			position[1] += direction[1] * velocity;
 			position[2] += direction[2] * velocity;
+			updateSpotlights();
 		};
+
 
 		void setVelocitity(float velocityNew) {
 			velocity = velocityNew;
@@ -333,28 +395,60 @@ void renderScene(void) {
 	// use our shader
 	glUseProgram(shader.getProgramIndex());
 
-		//send the light position in eye coordinates
-		//glUniform4fv(lPos_uniformId, 1, lightPos); //efeito capacete do mineiro, ou seja lighPos foi definido em eye coord 
+	//send the light position in eye coordinates
+	//glUniform4fv(lPos_uniformId, 1, lightPos); //efeito capacete do mineiro, ou seja lighPos foi definido em eye coord 
 
-		float res[6][4];
-		float res2[4];
+	float res[6][4];
+	float res2[4];
 
-			for (int i = 0; i < 6; i++) {
-				printf("Point light = { %.1f, %.1f, %.1f, %.1f}\n", lightPos[i][0], lightPos[i][1], lightPos[i][2], lightPos[i][3]);
-				multMatrixPoint(VIEW, lightPos[i], res[i]);   //lightPos definido em World Coord so is converted to eye space
-				printf("WORLD COORDS Point light = { %.1f, %.1f, %.1f, %.1f}\n", res[i][0], res[i][1], res[i][2], res[i][3]);
+	for (int i = 0; i < 6; i++) {
+		//printf("Point light = { %.1f, %.1f, %.1f, %.1f}\n", lightPos[i][0], lightPos[i][1], lightPos[i][2], lightPos[i][3]);
+		multMatrixPoint(VIEW, lightPos[i], res[i]);   //lightPos definido em World Coord so is converted to eye space
+		//printf("WORLD COORDS Point light = { %.1f, %.1f, %.1f, %.1f}\n", res[i][0], res[i][1], res[i][2], res[i][3]);
+		//printf("Point light uniform ID= { %d }\n", lPos_uniformId[i]);
 
-				glUniform4fv(lPos_uniformId[i], 1, res[i]);
+		glUniform4fv(lPos_uniformId[i], 1, res[i]);
 
-			}
-			printf("\n\n");		
-		//printf("Directional light = { %.1f, %.1f, %.1f, %.1f}", directionalLight[0], directionalLight[1], directionalLight[2], directionalLight[3]);
+	}
+	//printf("\n\n");		
+	//printf("Directional light = { %.1f, %.1f, %.1f, %.1f}", directionalLight[0], directionalLight[1], directionalLight[2], directionalLight[3]);
 		
-		multMatrixPoint(VIEW, directionalLight, res2);   //lightPos definido em World Coord so is converted to eye space
-		printf("WORLD COORDS DIRECTIONAL light = { %.1f, %.1f, %.1f, %.1f}\n", res2[0], res2[1], res2[2], res2[3]);
-		glUniform4fv(lDir_uniformId, 1, res2);
+	multMatrixPoint(VIEW, directionalLight, res2);   //lightPos definido em World Coord so is converted to eye space
+	//printf("WORLD COORDS DIRECTIONAL light = { %.1f, %.1f, %.1f, %.1f}\n", res2[0], res2[1], res2[2], res2[3]);
+	glUniform4fv(lDir_uniformId, 1, res2);
 		
-		
+	//printf("spotlight direction = { %.1f, %.1f, %.1f, %.1f}\n", car.spotlights[0]->dir[0], car.spotlights[0]->dir[1], car.spotlights[0]->dir[2], car.spotlights[0]->dir[3]);
+	//printf("spotlight position = { %.1f, %.1f, %.1f, %.1f}\n", car.spotlights[0]->pos[0], car.spotlights[0]->pos[1], car.spotlights[0]->pos[2], car.spotlights[0]->pos[3]);
+	//printf("spotlight cut angle = { %.1f }\n", car.spotlights[0]->ang);
+
+	multMatrixPoint(VIEW, car.spotlights[0]->dir, res2);
+	//printf("spotlight 0 dir = { %.1f, %.1f, %.1f, %.1f}\n", res2[0], res2[1], res2[2], res2[3]);
+	glUniform4fv(slDir_uniformId[0], 1, res2);
+
+	//glUniform4fv(slDir_uniformId[0], 1, car.spotlights[0]->dir);
+
+
+	multMatrixPoint(VIEW, car.spotlights[1]->dir, res2);
+	//printf("spotlight 1 dir = { %.1f, %.1f, %.1f, %.1f}\n", res2[0], res2[1], res2[2], res2[3]);
+	glUniform4fv(slDir_uniformId[1], 1, res2);
+
+	//glUniform4fv(slDir_uniformId[0], 1, car.spotlights[1]->dir);
+
+	multMatrixPoint(VIEW, car.spotlights[0]->pos, res2);
+	//printf("spotlight 0 pos = { %.1f, %.1f, %.1f, %.1f}\n", res2[0], res2[1], res2[2], res2[3]);
+	glUniform4fv(slPos_uniformId[0], 1, res2);
+
+	//glUniform4fv(slDir_uniformId[0], 1, car.spotlights[0]->pos);
+
+	multMatrixPoint(VIEW, car.spotlights[1]->pos, res2);
+	//printf("spotlight 1 pos = { %.1f, %.1f, %.1f, %.1f}\n", res2[0], res2[1], res2[2], res2[3]);
+	glUniform4fv(slPos_uniformId[1], 1, res2);
+	
+	//glUniform4fv(slDir_uniformId[0], 1, car.spotlights[1]->pos);
+
+	glUniform4fv(slCutOffAngle_uniformId[0], 1, &car.spotlights[0]->ang);
+	glUniform4fv(slCutOffAngle_uniformId[1], 1, &car.spotlights[1]->ang);
+
 	int objId=0; //id of the object mesh - to be used as index of mesh: Mymeshes[objID] means the current mesh
 
 	for (int i = 0 ; i < 8; ++i) {
@@ -542,11 +636,9 @@ void processKeys(unsigned char key, int xx, int yy)
 		case 'h':
 			// SPOTLIGHTS --> ILUMINACAO COMO SE FOSSE AS LUZES FRONTEIRAS DO CARRO
 			if (isSpotLightsOn) {
-				directionalLight = nolightDir;
 				isSpotLightsOn = false;
 			}
 			else {
-				directionalLight = lightDir;
 				isSpotLightsOn = true;
 			}
 			break;
@@ -593,7 +685,7 @@ void keyOperations() {
 	if (keyStates['q']) {
 		//move forward
 
-		car.velocity += 0.00016;
+		car.velocity += 0.00016f;
 		if (car.velocity > car.maxVelocity) {
 			car.velocity = car.maxVelocity;
 		}
@@ -604,7 +696,7 @@ void keyOperations() {
 
 	if (keyStates['a']) {
 		//move backwards
-		car.velocity += 0.00016;
+		car.velocity += 0.00016f;
 		if (car.velocity > car.maxVelocity) {
 			car.velocity = car.maxVelocity;
 		}
@@ -737,7 +829,8 @@ void processMouseMotion(int xx, int yy)
 {
 
 	int deltaX, deltaY;
-	float alphaAux, betaAux;
+	float alphaAux = 0;
+	float betaAux = 0;
 	float rAux;
 	float slowDown = 0.2f;
 	deltaX =  (- xx + startX) * slowDown;
@@ -833,14 +926,24 @@ GLuint setupShaders() {
 	vm_uniformId = glGetUniformLocation(shader.getProgramIndex(), "m_viewModel");
 	normal_uniformId = glGetUniformLocation(shader.getProgramIndex(), "m_normal");
 
-	lPos_uniformId[0] = glGetUniformLocation(shader.getProgramIndex(), "l_pos_1");
-	lPos_uniformId[1] = glGetUniformLocation(shader.getProgramIndex(), "l_pos_2");
-	lPos_uniformId[2] = glGetUniformLocation(shader.getProgramIndex(), "l_pos_3");
-	lPos_uniformId[3] = glGetUniformLocation(shader.getProgramIndex(), "l_pos_4");
-	lPos_uniformId[4] = glGetUniformLocation(shader.getProgramIndex(), "l_pos_5");
-	lPos_uniformId[5] = glGetUniformLocation(shader.getProgramIndex(), "l_pos_6");
-
+	lPos_uniformId[0] = glGetUniformLocation(shader.getProgramIndex(), "l_pos[0]");
+	lPos_uniformId[1] = glGetUniformLocation(shader.getProgramIndex(), "l_pos[1]");
+	lPos_uniformId[2] = glGetUniformLocation(shader.getProgramIndex(), "l_pos[2]");
+	lPos_uniformId[3] = glGetUniformLocation(shader.getProgramIndex(), "l_pos[3]");
+	lPos_uniformId[4] = glGetUniformLocation(shader.getProgramIndex(), "l_pos[4]");
+	lPos_uniformId[5] = glGetUniformLocation(shader.getProgramIndex(), "l_pos[5]");
+	
 	lDir_uniformId = glGetUniformLocation(shader.getProgramIndex(), "l_dir");
+	
+	slDir_uniformId[0] = glGetUniformLocation(shader.getProgramIndex(), "sl_dir[0]");
+	slDir_uniformId[1] = glGetUniformLocation(shader.getProgramIndex(), "sl_dir[1]");
+
+	slPos_uniformId[0] = glGetUniformLocation(shader.getProgramIndex(), "sl_pos[0]");
+	slPos_uniformId[1] = glGetUniformLocation(shader.getProgramIndex(), "sl_pos[1]");
+
+	slCutOffAngle_uniformId[0] = glGetUniformLocation(shader.getProgramIndex(), "sl_cut_off_ang[0]");
+	slCutOffAngle_uniformId[1] = glGetUniformLocation(shader.getProgramIndex(), "sl_cut_off_ang[1]");
+
 	tex_loc = glGetUniformLocation(shader.getProgramIndex(), "texmap");
 	tex_loc1 = glGetUniformLocation(shader.getProgramIndex(), "texmap1");
 	tex_loc2 = glGetUniformLocation(shader.getProgramIndex(), "texmap2");
