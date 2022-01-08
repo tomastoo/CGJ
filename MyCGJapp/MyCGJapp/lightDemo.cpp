@@ -156,15 +156,17 @@ class Car {
 				spotlights[i] = new Spotlight;
 
 				// SPOTLIGHTS CUT OFF ANGLE OF CONE 
-				spotlights[i]->ang = cos(DegToRad(12.5f));
+				spotlights[i]->ang = cos(DegToRad(10.f));
+				// W
+				spotlights[i]->pos[3] = 0.f;
 			}
 			updateSpotlights();
 		};
 
 		void updateSpotlights() {
-			float marginX[2] = { carBodyX, carBodyX };
-			float marginY[2] = { 0.f, 0.f };
-			float marginZ[2] = { 0.f, carBodyY};
+			float marginX[2] = { carBodyY + 3, carBodyY + 3 };
+			float marginY[2] = { 5.f, 5.f };
+			float marginZ[2] = { 0.f, carBodyX};
 
 			for (int i = 0; i < 2; i++) {
 				// SPOTLIGHTS DIRECTION
@@ -180,8 +182,7 @@ class Car {
 				spotlights[i]->pos[1] = position[1] + marginY[i];
 				// Z
 				spotlights[i]->pos[2] = position[2] + marginZ[i];
-				// W
-				spotlights[i]->pos[3] = 1.f;
+
 			}
 			
 			
@@ -419,32 +420,30 @@ void renderScene(void) {
 		
 	//printf("spotlight direction = { %.1f, %.1f, %.1f, %.1f}\n", car.spotlights[0]->dir[0], car.spotlights[0]->dir[1], car.spotlights[0]->dir[2], car.spotlights[0]->dir[3]);
 	//printf("spotlight position = { %.1f, %.1f, %.1f, %.1f}\n", car.spotlights[0]->pos[0], car.spotlights[0]->pos[1], car.spotlights[0]->pos[2], car.spotlights[0]->pos[3]);
-	//printf("spotlight cut angle = { %.1f }\n", car.spotlights[0]->ang);
+	//printf("spotlight cut angle = { %.10f }\n", car.spotlights[0]->ang);
 
 	multMatrixPoint(VIEW, car.spotlights[0]->dir, res2);
 	//printf("spotlight 0 dir = { %.1f, %.1f, %.1f, %.1f}\n", res2[0], res2[1], res2[2], res2[3]);
 	glUniform4fv(slDir_uniformId[0], 1, res2);
 
-	//glUniform4fv(slDir_uniformId[0], 1, car.spotlights[0]->dir);
 
 
 	multMatrixPoint(VIEW, car.spotlights[1]->dir, res2);
-	//printf("spotlight 1 dir = { %.1f, %.1f, %.1f, %.1f}\n", res2[0], res2[1], res2[2], res2[3]);
+	//printf("spotlight dir= { %.1f, %.1f, %.1f, %.1f}\n", car.spotlights[1]->dir[0], car.spotlights[1]->dir[1], car.spotlights[1]->dir[2], car.spotlights[1]->dir[3]);
+	//printf("spotlight dir res = { %.1f, %.1f, %.1f, %.1f}\n", res2[0], res2[1], res2[2], res2[3]);
 	glUniform4fv(slDir_uniformId[1], 1, res2);
 
-	//glUniform4fv(slDir_uniformId[0], 1, car.spotlights[1]->dir);
 
 	multMatrixPoint(VIEW, car.spotlights[0]->pos, res2);
 	//printf("spotlight 0 pos = { %.1f, %.1f, %.1f, %.1f}\n", res2[0], res2[1], res2[2], res2[3]);
 	glUniform4fv(slPos_uniformId[0], 1, res2);
 
-	//glUniform4fv(slDir_uniformId[0], 1, car.spotlights[0]->pos);
 
 	multMatrixPoint(VIEW, car.spotlights[1]->pos, res2);
-	//printf("spotlight 1 pos = { %.1f, %.1f, %.1f, %.1f}\n", res2[0], res2[1], res2[2], res2[3]);
+	//printf("spotlight 1 pos = { %.1f, %.1f, %.1f, %.1f}\n", car.spotlights[1]->pos[0], car.spotlights[1]->pos[1], car.spotlights[1]->pos[2], car.spotlights[1]->pos[3]);
+	//printf("spotlight 1 pos res = { %.1f, %.1f, %.1f, %.1f}\n", res2[0], res2[1], res2[2], res2[3]);
 	glUniform4fv(slPos_uniformId[1], 1, res2);
 	
-	//glUniform4fv(slDir_uniformId[0], 1, car.spotlights[1]->pos);
 
 	glUniform4fv(slCutOffAngle_uniformId[0], 1, &car.spotlights[0]->ang);
 	glUniform4fv(slCutOffAngle_uniformId[1], 1, &car.spotlights[1]->ang);
@@ -636,9 +635,15 @@ void processKeys(unsigned char key, int xx, int yy)
 		case 'h':
 			// SPOTLIGHTS --> ILUMINACAO COMO SE FOSSE AS LUZES FRONTEIRAS DO CARRO
 			if (isSpotLightsOn) {
+				for (int i = 0; i < 2; i++) {
+					car.spotlights[i]->pos[3] = 0.0f;
+				}
 				isSpotLightsOn = false;
 			}
 			else {
+				for (int i = 0; i < 2; i++) {
+					car.spotlights[i]->pos[3] = 1.0f;
+				}
 				isSpotLightsOn = true;
 			}
 			break;
@@ -755,12 +760,17 @@ void keyUp(unsigned char key, int x, int y) {
 		break;
 	case 'h':
 		// SPOTLIGHTS --> ILUMINACAO COMO SE FOSSE AS LUZES FRONTEIRAS DO CARRO
+			// SPOTLIGHTS --> ILUMINACAO COMO SE FOSSE AS LUZES FRONTEIRAS DO CARRO
 		if (isSpotLightsOn) {
-			directionalLight = nolightDir;
+			for (int i = 0; i < 2; i++) {
+				car.spotlights[i]->pos[3] = 0.0f;
+			}
 			isSpotLightsOn = false;
 		}
 		else {
-			directionalLight = lightDir;
+			for (int i = 0; i < 2; i++) {
+				car.spotlights[i]->pos[3] = 1.0f;
+			}
 			isSpotLightsOn = true;
 		}
 		break;

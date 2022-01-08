@@ -30,11 +30,11 @@ void main() {
 	vec3 n = normalize(DataIn.normal);
 	vec3 e = normalize(DataIn.eye);
 	int i = 0;
-
+	
 	while(i < DataIn.l_count){
 
 		vec3 l = normalize(DataIn.all_lights[i]);
-		
+
 		float intensity = max(dot(n,l), 0.0);
 		if (intensity > 0.0) {
 			vec3 h = normalize(l + e);
@@ -45,13 +45,13 @@ void main() {
 				colorOut = max(intensity * mat.diffuse + spec, mat.ambient);
 			}
 			else if(i > 6){
-				vec3 s = normalize(vec3(-sl_dir[i]));
-				if(dot(s, l) > sl_cut_off_ang[i]){
-					colorOut += max(intensity * mat.diffuse + spec, mat.ambient);	
-				}
+					vec3 s = normalize(vec3(-sl_dir[i]));
+					if(dot(s, l) > sl_cut_off_ang[i]){
+						colorOut += max(intensity * mat.diffuse + spec, mat.ambient);	
+					}
 			}
 			else{
-				colorOut += max(intensity * mat.diffuse + spec, mat.ambient);
+					colorOut += max(intensity * mat.diffuse + spec, mat.ambient);
 			}
 		}
 		i++;
