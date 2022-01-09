@@ -45,8 +45,8 @@ void main() {
 				colorOut = max(intensity * mat.diffuse + spec, mat.ambient);
 			}
 			else if(i > 6){
-					vec3 s = normalize(vec3(-sl_dir[i]));
-					if(dot(s, l) > sl_cut_off_ang[i]){
+					vec3 s = normalize(vec3(-sl_dir[i - 7]));
+					if(dot(s, l) > sl_cut_off_ang[i - 7]){
 						colorOut += max(intensity * mat.diffuse + spec, mat.ambient);	
 					}
 			}
