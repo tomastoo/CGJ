@@ -455,7 +455,7 @@ void cam3() {
 	//          object;
 
 	float inclination = 10.f;
-	float hight = 7;
+	float height = 7;
 	camX = r * sin(alpha_cam3 * 3.14f / 180.0f) * cos(beta_cam3 * 3.14f / 180.0f) + car.position[0];
 	camZ = r * cos(alpha_cam3 * 3.14f / 180.0f) * cos(beta_cam3 * 3.14f / 180.0f) + car.position[2];
 	camY = r * sin(inclination * 3.14f / 180.0f) + height;
@@ -1143,8 +1143,8 @@ void processMouseMotion(int xx, int yy)
 	case 3:
 		//float inclination = 55.f;
 		//float hight = 10;
-		alpha = alphaAux;
-		beta = betaAux;
+		alpha_cam3 = alphaAux;
+		//beta_cam3 = betaAux;
 		cam3();
 		break;
 	}
