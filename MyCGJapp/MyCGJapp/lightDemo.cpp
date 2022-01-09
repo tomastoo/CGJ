@@ -82,7 +82,7 @@ GLint lPos_uniformId[6];
 GLint lDir_uniformId;
 GLint slDir_uniformId[2];
 GLint slPos_uniformId[2];
-GLint slCutOffAngle_uniformId[2];
+GLint slCutOffAngle_uniformId;
 GLint tex_loc, tex_loc1, tex_loc2;
 	
 // Camera Position
@@ -203,44 +203,73 @@ class Car {
 		float jointCarGap = -0.5f;
 
 		Car() {
+			float marginX[2] = { carBodyY, carBodyY};
+			float marginY[2] = { 0.8f, 0.8f };
+			float marginZ[2] = { 0.f, carBodyX };
 			for (int i = 0; i < 2; i++) {
 				spotlights[i] = new Spotlight;
 
 				// SPOTLIGHTS CUT OFF ANGLE OF CONE 
-				spotlights[i]->ang = cos(DegToRad(10.f));
+				spotlights[i]->ang = cos(DegToRad(8.5f));
 				// W
 				spotlights[i]->pos[3] = 0.f;
-			}
-			updateSpotlights();
-		};
 
-		void updateSpotlights() {
-			float marginX[2] = { carBodyY + 3, carBodyY + 3 };
-			float marginY[2] = { 5.f, 5.f };
-			float marginZ[2] = { 0.f, carBodyX};
-
-			for (int i = 0; i < 2; i++) {
-				// SPOTLIGHTS DIRECTION
-				for (int j = 0; j < 4; j++) {
-					spotlights[i]->dir[j] = direction[j];
-				}
-
-				// SPOTLIGHTS POSITION 
-				// X
 				spotlights[i]->pos[0] = position[0] + marginX[i];
 				// Y
 				spotlights[i]->pos[1] = position[1] + marginY[i];
 				// Z
 				spotlights[i]->pos[2] = position[2] + marginZ[i];
+			}
+			updateSpotlights();
+		};
 
+		void updateSpotlights() {
+			float marginX[2] = { carBodyY + 20, carBodyY + 20 };
+			float marginY[2] = { 5.f, 5.f };
+			float marginZ[2] = { 0.f, carBodyX };
+
+			float forward;
+			if (!isForward) {
+				forward = -1;
+			}
+			else {
+				forward = 1;
+			}
+			for (int i = 0; i < 2; i++) {
+				// SPOTLIGHTS DIRECTION
+				for (int j = 0; j < 4; j++) {
+
+					spotlights[i]->dir[j] = forward*direction[j];
+				}
 			}
 		}
 
+		//void rotateSpotlights(float angle) {
+		//	for (int i = 0; i < 2; i++) {
+		//		float* newSpotLightPos = rotateVec4(spotlights[i]->pos, angle, 0, 1, 0);
+		//		for (int j = 0; j < 4; j++) {
+		//			spotlights[i]->pos[j] = newSpotLightPos[j];
+		//		}
+		//	}
+
+		//}
+
+		
 
 		void move() {
 			position[0] += direction[0] * velocity;
 			position[1] += direction[1] * velocity;
 			position[2] += direction[2] * velocity;
+
+			for (int i = 0; i < 2; i++) {
+				// SPOTLIGHTS POSITION 
+				// X
+				spotlights[i]->pos[0] += direction[0] * velocity;
+				// Y
+				spotlights[i]->pos[1] += direction[1] * velocity;
+				// Z
+				spotlights[i]->pos[2] += direction[2] * velocity;
+			}
 			updateSpotlights();
 		};
 
@@ -255,11 +284,14 @@ class Car {
 				alpha_cam3 -= rotationAngle;
 				directionAngle -= rotationAngle;
 				newDir = rotateVec4(direction, -rotationAngle, 0, 1, 0);
+				//rotateSpotlights(-rotationAngle);
 			}
 			else {
 				directionAngle += rotationAngle;
 				alpha_cam3 += rotationAngle;
 				newDir = rotateVec4(direction, rotationAngle, 0, 1, 0);
+
+				//rotateSpotlights(rotationAngle);
 			}
 			for (int i = 0; i < 3; i++) {
 				direction[i] = newDir[i];
@@ -427,8 +459,8 @@ void cam3() {
 	//    _ _ i\
 	//          object;
 
-	float inclination = 55.f;
-	float hight = 10;
+	float inclination = 10.f;
+	float hight = 7;
 	camX = r * sin(alpha_cam3 * 3.14f / 180.0f) * cos(beta_cam3 * 3.14f / 180.0f) + car.position[0];
 	camZ = r * cos(alpha_cam3 * 3.14f / 180.0f) * cos(beta_cam3 * 3.14f / 180.0f) + car.position[2];
 	camY = r * sin(inclination * 3.14f / 180.0f) + hight;
@@ -515,9 +547,9 @@ void renderScene(void) {
 	//printf("spotlight 1 pos res = { %.1f, %.1f, %.1f, %.1f}\n", res2[0], res2[1], res2[2], res2[3]);
 	glUniform4fv(slPos_uniformId[1], 1, res6);
 	
+	
 
-	glUniform4fv(slCutOffAngle_uniformId[0], 1, &car.spotlights[0]->ang);
-	glUniform4fv(slCutOffAngle_uniformId[1], 1, &car.spotlights[1]->ang);
+	glUniform1f(slCutOffAngle_uniformId, car.spotlights[0]->ang);
 
 	int objId=0; //id of the object mesh - to be used as index of mesh: Mymeshes[objID] means the current mesh
 	for (int i = 0 ; i < numObjects; ++i) {
@@ -680,7 +712,7 @@ void renderScene(void) {
 			if (mapRoad[j][k] == 0) {
 				continue;
 			}
-			printf("numR:  %d", numRoads);
+			//printf("numR:  %d", numRoads);
 			// send the material
 			loc = glGetUniformLocation(shader.getProgramIndex(), "mat.ambient");
 			glUniform4fv(loc, 1, myMeshes[objId].mat.ambient);
@@ -954,6 +986,7 @@ void keyOperations() {
 	else if (car.velocity > car.maxVelocity) {
 		car.velocity = car.maxVelocity;
 	}
+	car.updateSpotlights();
 
 }
 
@@ -1184,14 +1217,14 @@ GLuint setupShaders() {
 	
 	lDir_uniformId = glGetUniformLocation(shader.getProgramIndex(), "l_dir");
 	
-	slDir_uniformId[0] = glGetUniformLocation(shader.getProgramIndex(), "sl_dir[0]");
-	slDir_uniformId[1] = glGetUniformLocation(shader.getProgramIndex(), "sl_dir[1]");
 
 	slPos_uniformId[0] = glGetUniformLocation(shader.getProgramIndex(), "sl_pos[0]");
 	slPos_uniformId[1] = glGetUniformLocation(shader.getProgramIndex(), "sl_pos[1]");
 
-	slCutOffAngle_uniformId[0] = glGetUniformLocation(shader.getProgramIndex(), "sl_cut_off_ang[0]");
-	slCutOffAngle_uniformId[1] = glGetUniformLocation(shader.getProgramIndex(), "sl_cut_off_ang[1]");
+	slDir_uniformId[0] = glGetUniformLocation(shader.getProgramIndex(), "sl_dir[0]");
+	slDir_uniformId[1] = glGetUniformLocation(shader.getProgramIndex(), "sl_dir[1]");
+
+	slCutOffAngle_uniformId = glGetUniformLocation(shader.getProgramIndex(), "sl_cut_off_ang");
 
 	tex_loc = glGetUniformLocation(shader.getProgramIndex(), "texmap");
 	tex_loc1 = glGetUniformLocation(shader.getProgramIndex(), "texmap1");

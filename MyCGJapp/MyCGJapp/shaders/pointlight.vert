@@ -21,8 +21,10 @@ in vec4 normal;    //por causa do gerador de geometria
 out Data {
 	vec3 normal;
 	vec3 eye;
-	vec3 all_lights[9];
-	flat int l_count;
+	vec3 DirectionalLight;
+	vec3 PointLights[6];
+	vec3 SpotLights[2];
+	flat int lights[2];
 } DataOut;
 
 out vec3 vertex_color;
@@ -32,25 +34,29 @@ void main () {
 	vec4 pos = m_viewModel * position;
 
 	DataOut.normal = normalize(m_normal * normal.xyz);
-	DataOut.all_lights[0] = vec3(l_dir);
-
-	int count = 1;
+	DataOut.DirectionalLight = vec3(l_dir);
 
 	if(l_pos[0].w == 1.0f){
 
 		for(int i = 0; i < 6; i++){
-			DataOut.all_lights[i + count] = vec3(l_pos[i] - pos);
+			DataOut.PointLights[i] = vec3(l_pos[i] - pos);
 		}	
-		count += 6;
+		DataOut.lights[0] = 1;
 	}
-	if(sl_pos[0].w == 1.0f){
-		for(int i = 0; i < 2; i++){
-			DataOut.all_lights[i + count] = vec3(sl_pos[i] - pos);
-		}	
-		count += 2;
+	else{
+		DataOut.lights[0] = 0;
 	}
 
-	DataOut.l_count = count;
+	if(sl_pos[0].w == 1.0f){
+		for(int i = 0; i < 2; i++){
+			DataOut.SpotLights[i] = vec3(sl_pos[i] - pos);
+		}	
+		DataOut.lights[1] = 1;
+	}
+	else{
+		DataOut.lights[1] = 0;
+	}
+
 	DataOut.eye = vec3(-pos);
 	gl_Position = m_pvm * position;	
 
