@@ -187,13 +187,13 @@ struct Spotlight
 };
 class Car {
 	public:
-		float position[3] = { 0.0f, 0.0f, 0.0f };  //41.5 no z para tar na rua
+		float position[3] = { 0.0f, 0.0f, 0.0f }; 
 		float minVelocity = 0.0f;
-		float maxVelocity = 0.05f;
+		float maxVelocity = 0.01f;
 		float velocity = 0.0f;
 		float direction[4] = { 1.0f, 0.0f, 0.0f, 0.0f };
 		float directionAngle = 0;
-		float rotationAngle = 1;
+		float rotationAngle = 1.5f;
 		float isForward = true;
 		struct Spotlight *spotlights[2];
 		
@@ -272,11 +272,6 @@ class Car {
 			}
 			updateSpotlights();
 		};
-
-
-		void setVelocitity(float velocityNew) {
-			velocity = velocityNew;
-		}
 
 		void changeDirection(float isRight) {
 			float* newDir;
@@ -463,7 +458,7 @@ void cam3() {
 	float hight = 7;
 	camX = r * sin(alpha_cam3 * 3.14f / 180.0f) * cos(beta_cam3 * 3.14f / 180.0f) + car.position[0];
 	camZ = r * cos(alpha_cam3 * 3.14f / 180.0f) * cos(beta_cam3 * 3.14f / 180.0f) + car.position[2];
-	camY = r * sin(inclination * 3.14f / 180.0f) + hight;
+	camY = r * sin(inclination * 3.14f / 180.0f) + height;
 
 	lookAtX = car.position[0];
 	lookAtY = car.position[1];
@@ -607,7 +602,6 @@ void renderScene(void) {
 				//car wheel torus RIGHT TOP
 				translate(MODEL, position[0] + (carBodyZ)*sin(DegToRad(car.directionAngle)) + (carBodyX - jointCarGap) * cos(DegToRad(car.directionAngle)), position[1] + torusY, position[2] + carBodyZ * cos(DegToRad(car.directionAngle)) - (carBodyX - jointCarGap) * sin(DegToRad(car.directionAngle)));
 				rotate(MODEL, car.directionAngle, 0.0f, 1.0f, 0.0f);
-				//translate(MODEL, position[0] + carBodyX + jointCarGap, position[1] + torusY, position[2] + carBodyZ);
 				rotate(MODEL, 90.0f, 1.0f, 0.0f, 0.0f);
 
 				break;
@@ -615,19 +609,15 @@ void renderScene(void) {
 				//car wheel torus LEFT TOP
 				translate(MODEL, position[0] + (carBodyX - jointCarGap) * cos(DegToRad(car.directionAngle)), position[1] + torusY, position[2] - (carBodyX - jointCarGap) * sin(DegToRad(car.directionAngle)));
 				rotate(MODEL, car.directionAngle, 0.0f, 1.0f, 0.0f);
-				//translate(MODEL, (position[0] + carBodyX - jointCarGap), position[1] + torusY, position[2]);
 				rotate(MODEL, 90.0f, 1.0f, 0.0f, 0.0f);
 
-				//translate(MODEL, (position[0] + carBodyY + jointCarGap) * cos(car.directionAngle * 3.14159265358979323846f / 180), position[1] + torusY, -(position[2] + carBodyY + jointCarGap) * sin(car.directionAngle * 3.14159265358979323846f / 180));
-				//*sin(car.directionAngle * 3.14159265358979323846f/180)
 				break;
 
 			case 4:
 				//car wheel torus RIGHT BOTTOM
 				
 				translate(MODEL, position[0] + carBodyZ * sin(DegToRad(car.directionAngle)) + (jointCarGap * cos(DegToRad(car.directionAngle))), position[1] + torusY, position[2] + (carBodyZ* cos(car.directionAngle * 3.14159265358979323846f / 180)) - (jointCarGap * sin(car.directionAngle * 3.14159265358979323846f / 180)));
-				rotate(MODEL, car.directionAngle, 0.0f, 1.0f, 0.0f);  
-				//translate(MODEL, position[0] + jointCarGap, position[1] + torusY, position[2] + carBodyX);
+				rotate(MODEL, car.directionAngle, 0.0f, 1.0f, 0.0f);
 				rotate(MODEL, 90.0f, 1.0f, 0.0f, 0.0f);
 
 				break;
@@ -636,7 +626,6 @@ void renderScene(void) {
 
 				translate(MODEL, position[0] + jointCarGap * cos(DegToRad(car.directionAngle)), position[1] + torusY, position[2] - jointCarGap * sin(DegToRad(car.directionAngle)));
 				rotate(MODEL, car.directionAngle, 0.0f, 1.0f, 0.0f);
-				//translate(MODEL, (position[0] + jointCarGap), position[1] + torusY, position[2]);
 				rotate(MODEL, 90.0f, 1.0f, 0.0f, 0.0f);
 
 				break;
@@ -712,7 +701,6 @@ void renderScene(void) {
 			if (mapRoad[j][k] == 0) {
 				continue;
 			}
-			//printf("numR:  %d", numRoads);
 			// send the material
 			loc = glGetUniformLocation(shader.getProgramIndex(), "mat.ambient");
 			glUniform4fv(loc, 1, myMeshes[objId].mat.ambient);
@@ -900,8 +888,8 @@ void keyOperations() {
 	if (keyStates['q']) {
 		//move forward
 
-		if (car.isForward == false) {
-			car.velocity -= 0.00064;
+		if (car.isForward == false) {  //if car wants to go forward when it's reversing
+			car.velocity -= 0.00032;
 			if (car.velocity < 0) {
 				car.velocity = 0;
 				for (int i = 0; i < 3; i++) {
@@ -911,7 +899,7 @@ void keyOperations() {
 			}
 		}
 		else{
-			car.velocity += 0.00016;
+			car.velocity += 0.00008;
 			if (car.velocity > car.maxVelocity) {
 				car.velocity = car.maxVelocity;
 			}
@@ -922,7 +910,7 @@ void keyOperations() {
 	if (keyStates['a']) {
 		//move backwards
 		if (car.isForward == true) {  //if car wants to go backward (similar to braking)
-			car.velocity -= 0.00064;
+			car.velocity -= 0.00032;
 			if (car.velocity < 0) {
 				car.velocity = 0;
 				for (int i = 0; i < 3; i++) {
@@ -932,7 +920,7 @@ void keyOperations() {
 			}
 		}
 		else {
-			car.velocity += 0.00016;
+			car.velocity += 0.00008;
 			if (car.velocity > car.maxVelocity) {
 				car.velocity = car.maxVelocity;
 			}
@@ -960,7 +948,7 @@ void keyOperations() {
 	if (keyStates['o'] && car.velocity > 0) {
 		//move left
 		if (!keyStates['q'] && !keyStates['a']) {
-			car.velocity -= 0.00016;
+			car.velocity -= 0.00008;
 			if (car.velocity < 0) {
 				car.velocity = 0;
 			}
@@ -1058,7 +1046,7 @@ void keyUp(unsigned char key, int x, int y) {
 		cam3();
 
 		break;
-	case '4':
+	case '4':   //DEBUG MOVIMENTO DO CARRO
 		for (int i = 0; i < 3; i++) {
 			cout << "\ndir " << car.direction[i];
 		}
