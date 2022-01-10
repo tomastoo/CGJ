@@ -15,6 +15,7 @@ uniform Materials mat;
 
 uniform sampler2D texmap;
 uniform sampler2D texmap1;
+uniform sampler2D texmap2;
 uniform int texMode;
 
 uniform vec4 sl_dir[2];
@@ -90,7 +91,7 @@ void main() {
 	if(texMode == 0) // modulate diffuse color with texel color
 	{
 		if (intensity_spec[0] > 0){
-		texel = texture(texmap, DataIn.tex_coord);  // texel from grass.tga
+		texel = texture(texmap, DataIn.tex_coord);  // texel from lightwood.tga
 		colorOut = max(intensity_spec[0]*texel + intensity_spec[1], 0.07*texel);
 		}
 	}
@@ -98,6 +99,13 @@ void main() {
 	{
 		if (intensity_spec[0] > 0){
 		texel = texture(texmap1, DataIn.tex_coord);  // texel from road.jpg
+		colorOut = max(intensity_spec[0]*texel + intensity_spec[1], 0.07*texel);
+		}
+	}
+	else if (texMode == 2) // modulate diffuse color with texel1 color
+	{
+		if (intensity_spec[0] > 0){
+		texel = texture(texmap2, DataIn.tex_coord);  // texel from finishline.jpg
 		colorOut = max(intensity_spec[0]*texel + intensity_spec[1], 0.07*texel);
 		}
 	}
