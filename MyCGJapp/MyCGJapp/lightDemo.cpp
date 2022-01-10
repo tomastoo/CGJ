@@ -425,69 +425,66 @@ class Game {
 	public:float finishLinePos[3] = {tableX - finishLineDimensions[0], 0, tableZ - finishLineDimensions[2]};
 	public:bool isFinished = false;
 	public:bool win;
-	  void checkFinish(float* q) {
-		  if (CheckCollision(car.position[0], car.position[2], q[0], q[1], finishLinePos[0], finishLinePos[2], finishLineDimensions[0], finishLineDimensions[2])) {
-			  printf("FIM DA CORRIDA\n");
-			  finishGame(true);
-		  }
-	  }
+		void checkFinish(float* q) {
+			if (CheckCollision(car.position[0], car.position[2], q[0], q[1], finishLinePos[0], finishLinePos[2], finishLineDimensions[0], finishLineDimensions[2])) {
+				printf("FIM DA CORRIDA\n");
+				finishGame(true);
+			}
+		}
 
-	  void finishGame(bool win) {
-		  if (win) {
-			  cam = 1;
-			  this->win = win;
-			  RenderText(shaderText, "You win!", 25.0f, 25.0f, 1.0f, 0.5f, 0.8f, 0.2f);
-			  isFinished = true;
-		  }
-		  else {
-			  cam = 3;
-			  car.reset();
-		  }
-	  }
+		void finishGame(bool win) {
+			if (win) {
+				cam = 1;
+				this->win = win;
+				RenderText(shaderText, "You win!", 25.0f, 25.0f, 1.0f, 0.5f, 0.8f, 0.2f);
+			}
+			else {
+				cam = 1;
+				this->win = win;
+				RenderText(shaderText, "You lose!", 25.0f, 25.0f, 1.0f, 0.5f, 0.8f, 0.2f);
+			}
+			isFinished = true;
+		}
 
-	  void renderGameEnd() {
-		  if (win) {
-			  cam = 1;
-			  RenderText(shaderText, "You win!", 25.0f, 25.0f, 1.0f, 0.5f, 0.8f, 0.2f);
-		  }
-	  }
+		void renderGameEnd() {
+			if (win) {
+				cam = 1;
+				RenderText(shaderText, "You win!", 25.0f, 25.0f, 1.0f, 0.5f, 0.8f, 0.2f);
+			}
+			else {
+				cam = 1;
+				RenderText(shaderText, "You lose!", 25.0f, 25.0f, 1.0f, 0.5f, 0.8f, 0.2f);
+			}
+		}
 
-	  void createFinishLine() {
+		void createFinishLine() {
 
-		  float amb1[] = { 0.3f, 0.0f, 0.0f, 1.0f };
-		  float diff1[] = { 0.8f, 0.1f, 0.1f, 1.0f };
-		  float spec1[] = { 0.0f, 0.9f, 0.9f, 1.0f };
-		  float shininess = 200.0;
+			float amb1[] = { 0.3f, 0.0f, 0.0f, 1.0f };
+			float diff1[] = { 0.8f, 0.1f, 0.1f, 1.0f };
+			float spec1[] = { 0.0f, 0.9f, 0.9f, 1.0f };
+			float shininess = 200.0;
 
-		  float emissive[] = { 0.0f, 0.0f, 0.0f, 1.0f };
-		  int texcount = 0;
+			float emissive[] = { 0.0f, 0.0f, 0.0f, 1.0f };
+			int texcount = 0;
 
-		  MyMesh amesh;
+			MyMesh amesh;
 
-		  amesh = createCube();
-		  memcpy(amesh.mat.ambient, amb1, 4 * sizeof(float));
-		  memcpy(amesh.mat.diffuse, diff1, 4 * sizeof(float));
-		  memcpy(amesh.mat.specular, spec1, 4 * sizeof(float));
-		  memcpy(amesh.mat.emissive, emissive, 4 * sizeof(float));
-		  amesh.mat.shininess = shininess;
-		  amesh.mat.texCount = texcount;
-		  myMeshes.push_back(amesh);
-		  numObjects++;
-	  }
+			amesh = createCube();
+			memcpy(amesh.mat.ambient, amb1, 4 * sizeof(float));
+			memcpy(amesh.mat.diffuse, diff1, 4 * sizeof(float));
+			memcpy(amesh.mat.specular, spec1, 4 * sizeof(float));
+			memcpy(amesh.mat.emissive, emissive, 4 * sizeof(float));
+			amesh.mat.shininess = shininess;
+			amesh.mat.texCount = texcount;
+			myMeshes.push_back(amesh);
+			numObjects++;
+		}
 
-	  void createRoadCheerios() {
-
-	  }
-
-	  void renderFinishLine() {
-		  translate(MODEL, finishLinePos[0], finishLinePos[1], finishLinePos[2]);
-		  //rotate(MODEL, 180.f, 0.0f, 1.0f, 0.0f);
-		  scale(MODEL, finishLineDimensions[0], finishLineDimensions[1], finishLineDimensions[2]);
-	  }
-
-	  void renderRoadCheerios(int id) { 
-
-	  }
+		void renderFinishLine() {
+			translate(MODEL, finishLinePos[0], finishLinePos[1] , finishLinePos[2]);
+			//rotate(MODEL, 180.f, 0.0f, 1.0f, 0.0f);
+			scale(MODEL, finishLineDimensions[0], finishLineDimensions[1], finishLineDimensions[2]);
+		}
 };
 
 Game game;
