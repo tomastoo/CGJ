@@ -31,7 +31,7 @@
 #include "AVTmathLib.h"
 #include "VertexAttrDef.h"
 #include "geometry.h"
-
+#include "Texture_Loader.h"
 #include "avtFreeType.h"
 
 #ifdef _WIN32
@@ -83,7 +83,10 @@ GLint lDir_uniformId;
 GLint slDir_uniformId[2];
 GLint slPos_uniformId[2];
 GLint slCutOffAngle_uniformId;
-GLint tex_loc, tex_loc1, tex_loc2;
+GLint tex_loc, tex_loc1;
+GLint texMode_uniformId;
+
+GLuint TextureArray[2];
 	
 // Camera Position
 float camX, camY, camZ;
@@ -564,20 +567,28 @@ void renderScene(void) {
 
 
 	multMatrixPoint(VIEW, car.spotlights[0]->pos, res5);
-	printf("spotlight 0 pos = { %.1f, %.1f, %.1f, %.1f}\n", car.spotlights[0]->pos[0], car.spotlights[0]->pos[1], car.spotlights[0]->pos[2], car.spotlights[0]->pos[3]);
-	printf("spotlight 0 pos res = { %.1f, %.1f, %.1f, %.1f}\n", res2[0], res2[1], res2[2], res2[3]);
 	glUniform4fv(slPos_uniformId[0], 1, res5);
 
 	float res6[4];
 
 	multMatrixPoint(VIEW, car.spotlights[1]->pos, res6);
-	printf("spotlight 1 pos = { %.1f, %.1f, %.1f, %.1f}\n", car.spotlights[1]->pos[0], car.spotlights[1]->pos[1], car.spotlights[1]->pos[2], car.spotlights[1]->pos[3]);
-	printf("spotlight 1 pos res = { %.1f, %.1f, %.1f, %.1f}\n", res2[0], res2[1], res2[2], res2[3]);
 	glUniform4fv(slPos_uniformId[1], 1, res6);
 	
 	
 
 	glUniform1f(slCutOffAngle_uniformId, car.spotlights[0]->ang);
+
+	glActiveTexture(GL_TEXTURE0);
+	glBindTexture(GL_TEXTURE_2D, TextureArray[0]);
+
+	glActiveTexture(GL_TEXTURE1);
+	glBindTexture(GL_TEXTURE_2D, TextureArray[1]);
+
+
+	//Indicar aos dois samplers do GLSL quais os Texture Units a serem usados
+	glUniform1i(tex_loc, 1);
+	glUniform1i(tex_loc1, 0);
+
 
 	int objId=0; //id of the object mesh - to be used as index of mesh: Mymeshes[objID] means the current mesh
 	for (int i = 0 ; i < numObjects; ++i) {
@@ -610,6 +621,7 @@ void renderScene(void) {
 			switch (objId) {
 			case 0:
 				//table
+
 				translate(MODEL, 0.0f, 0.0f, 0.0f);
 				scale(MODEL, tableX, tableY, tableZ);
 
@@ -715,6 +727,9 @@ void renderScene(void) {
 			glUniformMatrix3fv(normal_uniformId, 1, GL_FALSE, mNormal3x3);
 
 			// Render mesh
+			if (objId == 0) glUniform1i(texMode_uniformId, 1);
+			else glUniform1i(texMode_uniformId, 2);
+
 			glBindVertexArray(myMeshes[objId].vao);
 			
 			if (!shader.isProgramValid()) {
@@ -726,6 +741,7 @@ void renderScene(void) {
 
 			popMatrix(MODEL);
 			objId++;
+
 		//}
 	}
 
@@ -771,6 +787,7 @@ void renderScene(void) {
 			glUniformMatrix3fv(normal_uniformId, 1, GL_FALSE, mNormal3x3);
 
 			// Render mesh
+			glUniform1i(texMode_uniformId, 0);
 			glBindVertexArray(myMeshes[objId].vao);
 
 			if (!shader.isProgramValid()) {
@@ -783,6 +800,7 @@ void renderScene(void) {
 			popMatrix(MODEL);
 			objId++;
 		}
+
 	}
 
 	//Render text (bitmap fonts) in screen coordinates. So use ortoghonal projection with viewport coordinates.
@@ -1225,6 +1243,8 @@ GLuint setupShaders() {
 
 	glLinkProgram(shader.getProgramIndex());
 
+
+	texMode_uniformId = glGetUniformLocation(shader.getProgramIndex(), "texMode"); // different modes of texturing
 	pvm_uniformId = glGetUniformLocation(shader.getProgramIndex(), "m_pvm");
 	vm_uniformId = glGetUniformLocation(shader.getProgramIndex(), "m_viewModel");
 	normal_uniformId = glGetUniformLocation(shader.getProgramIndex(), "m_normal");
@@ -1249,7 +1269,6 @@ GLuint setupShaders() {
 
 	tex_loc = glGetUniformLocation(shader.getProgramIndex(), "texmap");
 	tex_loc1 = glGetUniformLocation(shader.getProgramIndex(), "texmap1");
-	tex_loc2 = glGetUniformLocation(shader.getProgramIndex(), "texmap2");
 	
 	printf("InfoLog for Per Fragment Phong Lightning Shader\n%s\n\n", shader.getAllInfoLogs().c_str());
 
@@ -1315,6 +1334,11 @@ void init()
 	camX = r * sin(alpha * 3.14f / 180.0f) * cos(beta * 3.14f / 180.0f);
 	camZ = r * cos(alpha * 3.14f / 180.0f) * cos(beta * 3.14f / 180.0f);
 	camY = r * sin(beta * 3.14f / 180.0f);
+
+	glGenTextures(2, TextureArray);
+	Texture2D_Loader(TextureArray, "grass.jpg", 0);
+	Texture2D_Loader(TextureArray, "road.jpg", 1);
+
 
 	numRoads = CalcRoads();
 
@@ -1441,7 +1465,7 @@ void init()
 		memcpy(amesh.mat.diffuse, diff1, 4 * sizeof(float));
 		memcpy(amesh.mat.specular, spec1, 4 * sizeof(float));
 		memcpy(amesh.mat.emissive, emissive, 4 * sizeof(float));
-		amesh.mat.shininess = shininess;
+		amesh.mat.shininess = 500;
 		amesh.mat.texCount = texcount;
 		myMeshes.push_back(amesh);
 		//numObjects++;
@@ -1450,7 +1474,7 @@ void init()
 
 	
 	// some GL settings
-	glEnable(GL_DEPTH_TEST);
+	//glEnable(GL_DEPTH_TEST);
 	glEnable(GL_CULL_FACE);
 	glEnable(GL_MULTISAMPLE);
 	glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
