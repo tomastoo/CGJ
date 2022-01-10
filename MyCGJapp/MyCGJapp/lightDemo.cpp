@@ -398,11 +398,6 @@ public:
 
 Car car;
 Orange orange;
-Butter butter1;
-Butter butter2;
-Butter butter3;
-Butter butter4;
-Butter butter5;
 Butter butter[5];
 
 float lookAtX = car.position[0];
@@ -497,6 +492,51 @@ void cam3() {
 	cam = 3;
 };
 
+
+//Verifies if two objectes are coliding
+bool CheckCollision(int oneXP, int oneYP, int oneXS, int oneYS, int twoXP, int twoYP, int twoXS, int twoYS) // AABB - AABB collision
+{
+	int oneXP2 = oneXP - oneXS / 2;
+	int oneYP2 = oneYP - oneYS / 2;
+	int twoXP2 = twoXP - twoXS / 2;
+	int twoYP2 = twoYP - twoYS / 2;
+
+
+	// collision x-axis?
+	bool collisionX = oneXP + oneXS >= twoXP &&
+		twoXP + twoXS >= oneXP;
+	// collision y-axis?
+	bool collisionY = oneYP + oneYS >= twoYP &&
+		twoYP + twoYS >= oneYP;
+	// collision only if on both axes
+	return collisionX && collisionY;
+}
+
+float *getCarSize() {
+	float angle = car.rotationAngle;
+	float radAngle = DegToRad(angle);
+	float co = cos(radAngle);
+	float si = sin(radAngle);
+	float c = co *car.carBodyY;
+	float a = si * car.carBodyX;
+
+	float angle2 = 90.0 - ((int) angle % 90);
+	float radAngle2 = DegToRad(angle2);
+	float co2 = cos(radAngle2);
+	float si2 = sin(radAngle2);
+	float d = co2 * car.carBodyX;
+	float b = si2 * car.carBodyY;
+
+	float x = a + b;
+	float y = c + d;
+	float* q = new float[2];
+	q[0] = x;
+	q[1] = y;
+	return q;
+
+	
+}
+
 // ------------------------------------------------ ------------
 //
 // Render stufff
@@ -570,6 +610,24 @@ void renderScene(void) {
 
 	glUniform4fv(slCutOffAngle_uniformId[0], 1, &car.spotlights[0]->ang);
 	glUniform4fv(slCutOffAngle_uniformId[1], 1, &car.spotlights[1]->ang);
+
+	float* q = getCarSize();
+	for (int j = 0; j < numButter + 1; j++) {
+		if (j == 0) {
+
+			if (CheckCollision(car.position[0], car.position[2], q[0], q[1], orange.position[0], orange.position[2], 2, 2)) {
+				printf("COLOISAO_ORANGE\n");
+			}
+			
+		}
+
+		else {
+			if (CheckCollision(car.position[0], car.position[2], q[0], q[1], butter[j-1].position[0], butter[j-1].position[2], 1, 1)) {
+				printf("COLOISAO_BUTTER\n");
+			}
+			
+		}
+	}
 
 	int objId=0; //id of the object mesh - to be used as index of mesh: Mymeshes[objID] means the current mesh
 	for (int i = 0 ; i < numObjects; ++i) {
@@ -1220,6 +1278,7 @@ void mouseWheel(int wheel, int direction, int x, int y) {
 //
 // Shader Stuff
 //
+
 
 
 GLuint setupShaders() {
