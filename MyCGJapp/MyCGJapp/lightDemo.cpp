@@ -137,6 +137,7 @@ float roadTurn = 5;
 int numObjects = 0;
 const int numButter = 5;
 const int numOranges = 5;
+
 int mapRoad[10][10] = { {1, 1, 1, 0, 0, 0, 0, 0, 0, 0},//1
 						{0, 0, 1, 0, 0, 1, 1, 1, 1, 1},//2
 						{0, 0, 1, 0, 0, 1, 0, 0, 0, 1},//3
@@ -470,7 +471,6 @@ public:bool win;
 		  float diff1[] = { 0.8f, 0.1f, 0.1f, 1.0f };
 		  float spec1[] = { 0.0f, 0.9f, 0.9f, 1.0f };
 		  float shininess = 200.0;
-
 		  float emissive[] = { 0.0f, 0.0f, 0.0f, 1.0f };
 		  int texcount = 0;
 
@@ -487,18 +487,30 @@ public:bool win;
 		  numObjects++;
 	  }
 
-	  void createRoadCheerios() {
-
-	  }
-
 	  void renderFinishLine() {
 		  translate(MODEL, finishLinePos[0], finishLinePos[1], finishLinePos[2]);
 		  //rotate(MODEL, 180.f, 0.0f, 1.0f, 0.0f);
 		  scale(MODEL, finishLineDimensions[0], finishLineDimensions[1], finishLineDimensions[2]);
 	  }
 
-	  void renderRoadCheerios(int id) { 
-
+	  void colisionButterCheerio(float* q) {
+		  float butterCollisionVelocity = 0.8f;
+		  for (int i = 0; i < numButter; i++) {
+			  if (CheckCollision(car.position[0], car.position[2], q[0], q[1], butter[i].position[0], butter[i].position[2], 1, 1)) {
+				  car.velocity = 0;
+				  butter[i].position[0] += car.direction[0] * butterCollisionVelocity;
+				  butter[i].position[1] += car.direction[1] * butterCollisionVelocity;
+				  butter[i].position[2] += car.direction[2] * butterCollisionVelocity;
+			  }
+		  }
+		  //for (int i = 0; i < numCheerios; i++) {
+			 // if (CheckCollision(car.position[0], car.position[2], q[0], q[1], cheerio[i].position[0], cheerio[i].position[2], 1, 1)) {
+				//  car.velocity = 0;
+				//  cheerio[i].position[0] += car.direction[0] * butterCollisionVelocity;
+				//  cheerio[i].position[1] += car.direction[1] * butterCollisionVelocity;
+				//  cheerio[i].position[2] += car.direction[2] * butterCollisionVelocity;
+			 // }
+		  //}
 	  }
 };
 
@@ -733,20 +745,15 @@ void renderScene(void) {
 	float* q = getCarSize();
 	for (int j = 0; j < numButter + numOranges; j++) {
 		if (j < numOranges) {
-
-				if (CheckCollision(game.car.position[0], game.car.position[2], q[0], q[1], game.orange[j].position[0], game.orange[j].position[2], 2, 2)) {
-					printf("COLISAO_ORANGE\n");
-					game.finishGame(false); 
-				}	
-			}
-			else {
-				if (CheckCollision(game.car.position[0], game.car.position[2], q[0], q[1], game.butter[j-numOranges].position[0], game.butter[j-numOranges].position[2], 1, 1)) {
-					printf("COLISAO_BUTTER\n");
-				}
-			}
+			if (CheckCollision(game.car.position[0], game.car.position[2], q[0], q[1], game.orange[j].position[0], game.orange[j].position[2], 2, 2)) {
+				printf("COLISAO_ORANGE\n");
+				game.finishGame(false); 
+			}	
 		}
-		game.checkFinish(q);
+	}
 
+		game.checkFinish(q);
+		game.colisionButterCheerio(q);
 		int objId=0; //id of the object mesh - to be used as index of mesh: Mymeshes[objID] means the current mesh
 		for (int i = 0 ; i < numObjects; ++i) {
 	//		for (int j = 0; j < 2; ++j) {
@@ -1640,7 +1647,20 @@ void init()
 		myMeshes.push_back(amesh);
 		//numObjects++;
 	};
+	
+	// Cheerios
+	//for (int i = 0; i < numRoads; i++) {
 
+	//	amesh = createTorus(0.1f, 0.5f, 20, 20);
+	//	memcpy(amesh.mat.ambient, amb3, 4 * sizeof(float));
+	//	memcpy(amesh.mat.diffuse, diff2, 4 * sizeof(float));
+	//	memcpy(amesh.mat.specular, spec2, 4 * sizeof(float));
+	//	memcpy(amesh.mat.emissive, emissive, 4 * sizeof(float));
+	//	amesh.mat.shininess = shininess;
+	//	amesh.mat.texCount = texcount;
+	//	myMeshes.push_back(amesh);
+	//	numObjects++;
+	//};
 	
 	// some GL settings
 	//glEnable(GL_DEPTH_TEST);
