@@ -133,16 +133,17 @@ float roadTurn = 5;
 
 int numObjects = 0;
 int numButter = 5;
-int mapRoad[10][10] = { {1, 1, 1, 0, 0, 0, 0, 0, 0, 0},//1
-						{0, 0, 1, 0, 0, 1, 1, 1, 1, 1},//2
-						{0, 0, 1, 0, 0, 1, 0, 0, 0, 1},//3
-						{0, 0, 1, 1, 1, 1, 0, 0, 0, 1},//4
-						{0, 0, 0, 0, 0, 0, 0, 1, 1, 1},//5
-						{1, 1, 1, 1, 1, 1, 1, 1, 0, 0},//6
-						{1, 0, 0, 0, 0, 0, 0, 0, 0, 0},//7
-						{1, 0, 0, 1, 1, 1, 1, 0, 0, 0},//8
-						{1, 0, 0, 1, 0, 0, 1, 0, 0, 0},//9
-						{1, 1, 1, 1, 0, 0, 1, 1, 1, 1} };//10
+#define MATSIZE 10;
+int mapRoad[10][10] =	{ {1, 1, 1, 0, 0, 0, 0, 0, 0, 0},//1
+								{0, 0, 1, 0, 0, 1, 1, 1, 1, 1},//2
+								{0, 0, 1, 0, 0, 1, 0, 0, 0, 1},//3
+								{0, 0, 1, 1, 1, 1, 0, 0, 0, 1},//4
+								{0, 0, 0, 0, 0, 0, 0, 1, 1, 1},//5
+								{1, 1, 1, 1, 1, 1, 1, 1, 0, 0},//6
+								{1, 0, 0, 0, 0, 0, 0, 0, 0, 0},//7
+								{1, 0, 0, 1, 1, 1, 1, 0, 0, 0},//8
+								{1, 0, 0, 1, 0, 0, 1, 0, 0, 0},//9
+								{1, 1, 1, 1, 0, 0, 1, 1, 1, 1} };//10
 
 int mapRows = sizeof(mapRoad) / sizeof(mapRoad[0]);
 int mapCols = sizeof(mapRoad[0]) / sizeof(mapRoad[0][0]);
@@ -418,7 +419,7 @@ public:
 	Butter() {
 		// set position random
 		randomPosition();
-		reset();
+		//reset();
 	};
 	/*
 	void move() {
@@ -433,8 +434,15 @@ public:
 	*/
 	//given a certain table size 
 	void randomPosition() {
-		position[0] = static_cast <float> (rand()) / (static_cast <float> (RAND_MAX / tableX));
-		position[2] = static_cast <float> (rand()) / (static_cast <float> (RAND_MAX / tableZ));
+		int a = rand() % 10;
+		int b = rand() % 10;
+		while (mapRoad[a][b] != 1) {
+			a = rand() % 10;
+			b = rand() % 10;
+		}
+		
+		position[0] = b*10 + static_cast <float> (rand()) / (static_cast <float> (RAND_MAX / 10));
+		position[2] = a*10 + static_cast <float> (rand()) / (static_cast <float> (RAND_MAX / 10));
 	}
 
 	bool isOnTable() {
@@ -556,18 +564,45 @@ bool CheckCollision(int oneXP, int oneYP, int oneXS, int oneYS, int twoXP, int t
 {
 	int oneXP2 = oneXP - oneXS / 2;
 	int oneYP2 = oneYP - oneYS / 2;
-	int twoXP2 = twoXP - twoXS / 2;
-	int twoYP2 = twoYP - twoYS / 2;
 
 
 	// collision x-axis?
-	bool collisionX = oneXP + oneXS >= twoXP &&
-		twoXP + twoXS >= oneXP;
+	bool collisionX = oneXP2 + oneXS >= twoXP &&
+		twoXP + twoXS >= oneXP2;
 	// collision y-axis?
-	bool collisionY = oneYP + oneYS >= twoYP &&
-		twoYP + twoYS >= oneYP;
+	bool collisionY = oneYP2 + oneYS >= twoYP &&
+		twoYP + twoYS >= oneYP2;
 	// collision only if on both axes
 	return collisionX && collisionY;
+}
+
+float* getCarCenter() {
+	float* Dir = new float[2];
+	float* p = new float[2];
+	//float radAndgle = DegToRad(car.carBodyX / car.carBodyY);
+	float angle = DegToRad(-27);
+	float co = cos(angle);
+	float si = sin(angle);
+
+	Dir[0] = car.direction[0];
+	Dir[1] = car.direction[2];
+	float x = Dir[0];
+	float y = Dir[1];
+	Dir[0] = x * co + y * si;
+	Dir[1] = -x * si + y * co;
+
+	float mag = sqrt(Dir[0] * Dir[0] + Dir[1] * Dir[1] );
+
+	Dir[0] /= mag;
+	Dir[1] /= mag;
+	
+	//printf("d[0]: % f, d[1] : % f\n", car.direction[0], car.direction[1]);
+	//float dist = sqrt(car.carBodyX * car.carBodyX + car.carBodyY * car.carBodyY) / 2;
+	float dist =  1.677;
+	p[0] = car.position[0] + Dir[0] * dist;
+	p[1] = car.position[2] + Dir[1] * dist;
+
+	return p;
 }
 
 float *getCarSize() {
@@ -576,17 +611,17 @@ float *getCarSize() {
 	float co = cos(radAngle);
 	float si = sin(radAngle);
 	float c = co *car.carBodyY;
-	float a = si * car.carBodyX;
+	float a = si * car.carBodyY;
 
 	float angle2 = 90.0 - ((int) angle % 90);
 	float radAngle2 = DegToRad(angle2);
 	float co2 = cos(radAngle2);
 	float si2 = sin(radAngle2);
 	float d = co2 * car.carBodyX;
-	float b = si2 * car.carBodyY;
+	float b = si2 * car.carBodyX;
 
-	float x = a + b;
-	float y = c + d;
+	float y = a + b;
+	float x = c + d;
 	float* q = new float[2];
 	q[0] = x;
 	q[1] = y;
@@ -676,19 +711,21 @@ void renderScene(void) {
 
 	glUniform1f(slCutOffAngle_uniformId, car.spotlights[0]->ang);
 
+	float* p = getCarCenter();
 	float* q = getCarSize();
+	//printf("dir0: %f, dir1: %f", car.direction[0], car.direction[2]);
 	for (int j = 0; j < numButter + 1; j++) {
 		if (j == 0) {
 
-			if (CheckCollision(car.position[0], car.position[2], q[0], q[1], orange.position[0], orange.position[2], 2, 2)) {
-				printf("COLOISAO_ORANGE\n");
+			if (CheckCollision(p[0], p[1], q[0], q[1], orange.position[0], orange.position[2], 2,2)) {
+				printf("COLISAO_ORANGE - gameover \n");
 			}
 			
 		}
 
 		else {
-			if (CheckCollision(car.position[0], car.position[2], q[0], q[1], butter[j-1].position[0], butter[j-1].position[2], 1, 1)) {
-				printf("COLOISAO_BUTTER\n");
+			if (CheckCollision(p[0], p[1], q[0], q[1], butter[j-1].position[0], butter[j-1].position[2], 1, 1)) {
+				printf("COLISAO_BUTTER CPX: %f, CPY: %f, p0: %f, p1: %f, q0: %f, q1:%f\n", car.position[0], car.position[2], p[0],p[1],q[0],q[1]);
 			}
 			
 		}
