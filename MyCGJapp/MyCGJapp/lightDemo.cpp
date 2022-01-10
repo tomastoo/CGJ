@@ -661,15 +661,15 @@ void renderScene(void) {
 
 
 	multMatrixPoint(VIEW, car.spotlights[0]->pos, res5);
-	printf("spotlight 0 pos = { %.1f, %.1f, %.1f, %.1f}\n", car.spotlights[0]->pos[0], car.spotlights[0]->pos[1], car.spotlights[0]->pos[2], car.spotlights[0]->pos[3]);
-	printf("spotlight 0 pos res = { %.1f, %.1f, %.1f, %.1f}\n", res2[0], res2[1], res2[2], res2[3]);
+	//printf("spotlight 0 pos = { %.1f, %.1f, %.1f, %.1f}\n", car.spotlights[0]->pos[0], car.spotlights[0]->pos[1], car.spotlights[0]->pos[2], car.spotlights[0]->pos[3]);
+	//printf("spotlight 0 pos res = { %.1f, %.1f, %.1f, %.1f}\n", res2[0], res2[1], res2[2], res2[3]);
 	glUniform4fv(slPos_uniformId[0], 1, res5);
 
 	float res6[4];
 
 	multMatrixPoint(VIEW, car.spotlights[1]->pos, res6);
-	printf("spotlight 1 pos = { %.1f, %.1f, %.1f, %.1f}\n", car.spotlights[1]->pos[0], car.spotlights[1]->pos[1], car.spotlights[1]->pos[2], car.spotlights[1]->pos[3]);
-	printf("spotlight 1 pos res = { %.1f, %.1f, %.1f, %.1f}\n", res2[0], res2[1], res2[2], res2[3]);
+	//printf("spotlight 1 pos = { %.1f, %.1f, %.1f, %.1f}\n", car.spotlights[1]->pos[0], car.spotlights[1]->pos[1], car.spotlights[1]->pos[2], car.spotlights[1]->pos[3]);
+	//printf("spotlight 1 pos res = { %.1f, %.1f, %.1f, %.1f}\n", res2[0], res2[1], res2[2], res2[3]);
 	glUniform4fv(slPos_uniformId[1], 1, res6);
 	
 	
