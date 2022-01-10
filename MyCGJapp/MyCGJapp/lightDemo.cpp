@@ -266,6 +266,18 @@ class Car {
 
 		}
 
+		void reset() {
+			direction[0] = 1; 
+			for (int i = 0; i < 3; i++) {
+				position[i] = 0;
+				direction[i + 1] = 0;
+			}
+			directionAngle = 0;
+			alpha_cam3 = -90.0f;
+			beta_cam3 = 0.0f;
+			updateSpotlights();
+		}
+
 		void move() {
 			position[0] += direction[0] * velocity;
 			position[1] += direction[1] * velocity;
@@ -418,73 +430,76 @@ public:
 
 
 class Game {
-	public:Car car;
-	public:Orange orange[numOranges];
-	public:Butter butter[numButter];
-	public:float finishLineDimensions[3] = {1, 1, roadWidth};
-	public:float finishLinePos[3] = {tableX - finishLineDimensions[0] - 1, 1, tableZ - finishLineDimensions[2] -0.5f};
-	public:bool isFinished = false;
-	public:bool win;
-		void checkFinish(float* q) {
-			if (CheckCollision(car.position[0], car.position[2], q[0], q[1], finishLinePos[0], finishLinePos[2], finishLineDimensions[0], finishLineDimensions[2])) {
-				printf("FIM DA CORRIDA\n");
-				finishGame(true);
-			}
-		}
+public:Car car;
+public:Orange orange[numOranges];
+public:Butter butter[numButter];
+public:float finishLineDimensions[3] = { 1, 1, roadWidth };
+public:float finishLinePos[3] = { tableX - finishLineDimensions[0] - 1, 1, tableZ - finishLineDimensions[2] - 0.5f };
+public:bool isFinished = false;
+public:bool win;
+	  void checkFinish(float* q) {
+		  if (CheckCollision(car.position[0], car.position[2], q[0], q[1], finishLinePos[0], finishLinePos[2], finishLineDimensions[0], finishLineDimensions[2])) {
+			  printf("FIM DA CORRIDA\n");
+			  finishGame(true);
+		  }
+	  }
 
-		void finishGame(bool win) {
-			if (win) {
-				cam = 1;
-				this->win = win;
-				RenderText(shaderText, "You win!", 25.0f, 25.0f, 1.0f, 0.5f, 0.8f, 0.2f);
-			}
-			else {
-				cam = 1;
-				this->win = win;
-				RenderText(shaderText, "You lose!", 25.0f, 25.0f, 1.0f, 0.5f, 0.8f, 0.2f);
-			}
-			isFinished = true;
-		}
+	  void finishGame(bool win) {
+		  if (win) {
+			  cam = 1;
+			  this->win = win;
+			  RenderText(shaderText, "You win!", 25.0f, 25.0f, 1.0f, 0.5f, 0.8f, 0.2f);
+			  isFinished = true;
+		  }
+		  else {
+			  cam = 3;
+			  car.reset();
+		  }
+	  }
 
-		void renderGameEnd() {
-			if (win) {
-				cam = 1;
-				RenderText(shaderText, "You win!", 25.0f, 25.0f, 1.0f, 0.5f, 0.8f, 0.2f);
-			}
-			else {
-				cam = 1;
-				RenderText(shaderText, "You lose!", 25.0f, 25.0f, 1.0f, 0.5f, 0.8f, 0.2f);
-			}
-		}
+	  void renderGameEnd() {
+		  if (win) {
+			  cam = 1;
+			  RenderText(shaderText, "You win!", 25.0f, 25.0f, 1.0f, 0.5f, 0.8f, 0.2f);
+		  }
+	  }
 
-		void createFinishLine() {
+	  void createFinishLine() {
 
-			float amb1[] = { 0.3f, 0.0f, 0.0f, 1.0f };
-			float diff1[] = { 0.8f, 0.1f, 0.1f, 1.0f };
-			float spec1[] = { 0.0f, 0.9f, 0.9f, 1.0f };
-			float shininess = 200.0;
+		  float amb1[] = { 0.3f, 0.0f, 0.0f, 1.0f };
+		  float diff1[] = { 0.8f, 0.1f, 0.1f, 1.0f };
+		  float spec1[] = { 0.0f, 0.9f, 0.9f, 1.0f };
+		  float shininess = 200.0;
 
-			float emissive[] = { 0.0f, 0.0f, 0.0f, 1.0f };
-			int texcount = 0;
+		  float emissive[] = { 0.0f, 0.0f, 0.0f, 1.0f };
+		  int texcount = 0;
 
-			MyMesh amesh;
+		  MyMesh amesh;
 
-			amesh = createCube();
-			memcpy(amesh.mat.ambient, amb1, 4 * sizeof(float));
-			memcpy(amesh.mat.diffuse, diff1, 4 * sizeof(float));
-			memcpy(amesh.mat.specular, spec1, 4 * sizeof(float));
-			memcpy(amesh.mat.emissive, emissive, 4 * sizeof(float));
-			amesh.mat.shininess = shininess;
-			amesh.mat.texCount = texcount;
-			myMeshes.push_back(amesh);
-			numObjects++;
-		}
+		  amesh = createCube();
+		  memcpy(amesh.mat.ambient, amb1, 4 * sizeof(float));
+		  memcpy(amesh.mat.diffuse, diff1, 4 * sizeof(float));
+		  memcpy(amesh.mat.specular, spec1, 4 * sizeof(float));
+		  memcpy(amesh.mat.emissive, emissive, 4 * sizeof(float));
+		  amesh.mat.shininess = shininess;
+		  amesh.mat.texCount = texcount;
+		  myMeshes.push_back(amesh);
+		  numObjects++;
+	  }
 
-		void renderFinishLine() {
-			translate(MODEL, finishLinePos[0], finishLinePos[1] , finishLinePos[2]);
-			//rotate(MODEL, 180.f, 0.0f, 1.0f, 0.0f);
-			scale(MODEL, finishLineDimensions[0], finishLineDimensions[1], finishLineDimensions[2]);
-		}
+	  void createRoadCheerios() {
+
+	  }
+
+	  void renderFinishLine() {
+		  translate(MODEL, finishLinePos[0], finishLinePos[1], finishLinePos[2]);
+		  //rotate(MODEL, 180.f, 0.0f, 1.0f, 0.0f);
+		  scale(MODEL, finishLineDimensions[0], finishLineDimensions[1], finishLineDimensions[2]);
+	  }
+
+	  void renderRoadCheerios(int id) { 
+
+	  }
 };
 
 Game game;
@@ -720,13 +735,13 @@ void renderScene(void) {
 		if (j < numOranges) {
 
 				if (CheckCollision(game.car.position[0], game.car.position[2], q[0], q[1], game.orange[j].position[0], game.orange[j].position[2], 2, 2)) {
-					printf("COLOISAO_ORANGE\n");
-					//game.finishGame(false);
+					printf("COLISAO_ORANGE\n");
+					game.finishGame(false); 
 				}	
 			}
 			else {
 				if (CheckCollision(game.car.position[0], game.car.position[2], q[0], q[1], game.butter[j-numOranges].position[0], game.butter[j-numOranges].position[2], 1, 1)) {
-					printf("COLOISAO_BUTTER\n");
+					printf("COLISAO_BUTTER\n");
 				}
 			}
 		}
