@@ -1487,7 +1487,7 @@ void init()
 	camY = r * sin(beta * 3.14f / 180.0f);
 
 	glGenTextures(2, TextureArray);
-	Texture2D_Loader(TextureArray, "grass.jpg", 0);
+	Texture2D_Loader(TextureArray, "lightwood.tga", 0);
 	Texture2D_Loader(TextureArray, "road.jpg", 1);
 
 
