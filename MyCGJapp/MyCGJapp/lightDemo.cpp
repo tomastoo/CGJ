@@ -31,7 +31,7 @@
 #include "AVTmathLib.h"
 #include "VertexAttrDef.h"
 #include "geometry.h"
-
+#include "Texture_Loader.h"
 #include "avtFreeType.h"
 
 #ifdef _WIN32
@@ -84,6 +84,9 @@ GLint slDir_uniformId[2];
 GLint slPos_uniformId[2];
 GLint slCutOffAngle_uniformId;
 GLint tex_loc, tex_loc1, tex_loc2;
+GLint texMode_uniformId;
+
+GLuint TextureArray[3];
 	
 // Camera Position
 float camX, camY, camZ;
@@ -132,18 +135,20 @@ float roadWidth = 10;
 float roadTurn = 5;
 
 int numObjects = 0;
-int numButter = 5;
-#define MATSIZE 10;
-int mapRoad[10][10] =	{ {1, 1, 1, 0, 0, 0, 0, 0, 0, 0},//1
-								{0, 0, 1, 0, 0, 1, 1, 1, 1, 1},//2
-								{0, 0, 1, 0, 0, 1, 0, 0, 0, 1},//3
-								{0, 0, 1, 1, 1, 1, 0, 0, 0, 1},//4
-								{0, 0, 0, 0, 0, 0, 0, 1, 1, 1},//5
-								{1, 1, 1, 1, 1, 1, 1, 1, 0, 0},//6
-								{1, 0, 0, 0, 0, 0, 0, 0, 0, 0},//7
-								{1, 0, 0, 1, 1, 1, 1, 0, 0, 0},//8
-								{1, 0, 0, 1, 0, 0, 1, 0, 0, 0},//9
-								{1, 1, 1, 1, 0, 0, 1, 1, 1, 1} };//10
+const int numButter = 5;
+const int numOranges = 5;
+
+int mapRoad[10][10] = { {1, 1, 1, 0, 0, 0, 0, 0, 0, 0},//1
+						{0, 0, 1, 0, 0, 1, 1, 1, 1, 1},//2
+						{0, 0, 1, 0, 0, 1, 0, 0, 0, 1},//3
+						{0, 0, 1, 1, 1, 1, 0, 0, 0, 1},//4
+						{0, 0, 0, 0, 0, 0, 0, 1, 1, 1},//5
+						{1, 1, 1, 1, 1, 1, 1, 1, 0, 0},//6
+						{1, 0, 0, 0, 0, 0, 0, 0, 0, 0},//7
+						{1, 0, 0, 1, 1, 1, 1, 0, 0, 0},//8
+						{1, 0, 0, 1, 0, 0, 1, 0, 0, 0},//9
+						{1, 1, 1, 1, 0, 0, 1, 1, 1, 0} };//10
+
 
 int mapRows = sizeof(mapRoad) / sizeof(mapRoad[0]);
 int mapCols = sizeof(mapRoad[0]) / sizeof(mapRoad[0][0]);
@@ -180,6 +185,7 @@ bool isDirectionalLightOn = false;
 bool isPointLightsOn = false;
 bool isSpotLightsOn = false;
 
+bool CheckCollision(int oneXP, int oneYP, int oneXS, int oneYS, int twoXP, int twoYP, int twoXS, int twoYS); // AABB - AABB collision
 
 struct Spotlight
 {
@@ -231,12 +237,14 @@ class Car {
 			float marginZ[2] = { 0.f, carBodyX };
 
 			float forward;
+			
 			if (!isForward) {
 				forward = -1;
 			}
 			else {
 				forward = 1;
 			}
+			
 			for (int i = 0; i < 2; i++) {
 				// SPOTLIGHTS DIRECTION
 				for (int j = 0; j < 4; j++) {
@@ -244,23 +252,7 @@ class Car {
 					spotlights[i]->dir[j] = forward*direction[j];
 				}
 			}
-			
-			//translate(MODEL, position[0] + (carBodyX - jointCarGap) * cos(DegToRad(car.directionAngle)), 
-			//	position[1] + torusY, 
-			//	position[2] - (carBodyX - jointCarGap) * sin(DegToRad(car.directionAngle)));
-
-			//// X
-			//spotlights[0]->pos[0] = position[0] + marginX[0] * cos(DegToRad(directionAngle));
-			//// Y
-			//spotlights[0]->pos[1] = position[1] + marginY[0];
-			//// Z
-			//spotlights[0]->pos[2] = position[2] + marginZ[0] * sin(DegToRad(directionAngle));
-
-			/*translate(MODEL, position[0] + (carBodyZ)*sin(DegToRad(car.directionAngle)) + (carBodyX - jointCarGap) * cos(DegToRad(car.directionAngle))
-				, position[1] + torusY, 
-				position[2] + carBodyZ * cos(DegToRad(car.directionAngle)) - (carBodyX - jointCarGap) * sin(DegToRad(car.directionAngle)));*/
-
-			// 
+			// RIGHT SPOTLIGHT 
 			// X
 			spotlights[1]->pos[0] = position[0] + marginZ[1] * sin(DegToRad(directionAngle)) +  marginX[1] * cos(DegToRad(directionAngle));
 			// Y
@@ -277,33 +269,22 @@ class Car {
 			spotlights[0]->pos[2] = position[2] - marginX[0] * sin(DegToRad(directionAngle));
 
 		}
-
-		//void rotateSpotlights(float angle) {
-		//	for (int i = 0; i < 2; i++) {
-		//		float* newSpotLightPos = rotateVec4(spotlights[i]->pos, angle, 0, 1, 0);
-		//		for (int j = 0; j < 4; j++) {
-		//			spotlights[i]->pos[j] = newSpotLightPos[j];
-		//		}
-		//	}
-
-		//}
-
-		
-
+		void reset() {
+			direction[0] = 1;
+			for (int i = 0; i < 3; i++) {
+				position[i] = 0;
+				direction[i + 1] = 0;
+			}
+			directionAngle = 0;
+			alpha_cam3 = -90.0f;
+			beta_cam3 = 0.0f;
+			isForward = true;
+			updateSpotlights();
+		}
 		void move() {
 			position[0] += direction[0] * velocity;
 			position[1] += direction[1] * velocity;
 			position[2] += direction[2] * velocity;
-
-			//for (int i = 0; i < 2; i++) {
-			//	// SPOTLIGHTS POSITION 
-			//	// X
-			//	spotlights[i]->pos[0] += direction[0] * velocity;
-			//	// Y
-			//	spotlights[i]->pos[1] += direction[1] * velocity;
-			//	// Z
-			//	spotlights[i]->pos[2] += direction[2] * velocity;
-			//}
 			updateSpotlights();
 		};
 
@@ -337,9 +318,9 @@ class Car {
 
 class Orange{
 public:
-	const float velocityIncrease = 0.008f;
+	const float velocityIncrease = 0.005f;
 	const float veloctityIntervalIncrease = 0.001;
-	float maxVelocity = 0.1f;
+	float maxVelocity = 0.03f;
 	float minVelocity = 0.01f;
 	float position[3] = { 0.0f, 1.5f, 0.0f };
 	float velocity;
@@ -378,8 +359,8 @@ public:
 	}
 
 	void randomDirection() {
-		direction[0] = static_cast <float> (rand()) / static_cast <float> (RAND_MAX);
-		direction[2] = static_cast <float> (rand()) / static_cast <float> (RAND_MAX);
+		direction[0] = -1 + static_cast <float> (rand()) / (static_cast <float> (RAND_MAX / (1 - (-1))));
+		direction[2] = -1 + static_cast <float> (rand()) / (static_cast <float> (RAND_MAX / (1 - (-1))));
 	}
 
 	void randomVelocity() {
@@ -403,17 +384,24 @@ public:
 			velocity = maxVelocity;
 		}
 	}
+	
+	void renderOrange() {
+		move();
+		if (!isOnTable()) {
+			//printf("fora da mesa\n");
+			reset();
+		}
+		translate(MODEL, position[0], position[1], position[2]);
+		roll();
+		rotate(MODEL, rotationAngle, direction[0], direction[1], direction[2]);
+		accelerate();
+		//printf("velocity of the orange %.10f", velocity);
+	}
 };
 
 class Butter {
 public:
-	//const float velocityIncrease = 0.008f;
-	//const float veloctityIntervalIncrease = 0.001;
-	//float maxVelocity = 0.1f;
-	//float minVelocity = 0.01f;
-	float position[3] = { 0.0f, 1.5f, 0.0f };
-	//float velocity;
-	//float direction[3] = { 1.0f, 0.0f, 0.0f };
+	float position[3] = { 0.0f, 0.5f, 0.0f };
 	float rotationAngle = 0;
 
 	Butter() {
@@ -421,17 +409,7 @@ public:
 		randomPosition();
 		//reset();
 	};
-	/*
-	void move() {
-		position[0] += direction[0] * velocity;
-		position[1] += direction[1] * velocity;
-		position[2] += direction[2] * velocity;
-	};
 	
-	void roll() {
-		rotationAngle = velocity * 10;
-	}
-	*/
 	//given a certain table size 
 	void randomPosition() {
 		int a = rand() % 10;
@@ -457,18 +435,100 @@ public:
 
 	void reset() {
 		randomPosition();
-	//	randomDirection();
-		//randomVelocity();
 	}
 };
 
-Car car;
-Orange orange;
-Butter butter[5];
 
-float lookAtX = car.position[0];
-float lookAtY = car.position[1];
-float lookAtZ = car.position[2];
+class Game {
+	public:Car car;
+	public:Orange orange[numOranges];
+	public:Butter butter[numButter];
+	public:float finishLineDimensions[3] = {roadWidth, 0.6, roadWidth};
+	public:float finishLinePos[3] = {tableX - finishLineDimensions[0], 0, tableZ - finishLineDimensions[2]};
+	public:bool isFinished = false;
+	public:bool win;
+		void checkFinish(float* q, float* p) {
+			if (CheckCollision(p[0], p[1], q[0], q[1], finishLinePos[0], finishLinePos[2], finishLineDimensions[0], finishLineDimensions[2])) {
+				printf("FIM DA CORRIDA\n");
+				finishGame(true);
+			}
+		}
+
+		void finishGame(bool win) {
+			if (win) {
+				cam = 1;
+				this->win = win;
+				RenderText(shaderText, "You win!", 25.0f, 25.0f, 1.0f, 0.5f, 0.8f, 0.2f);
+				isFinished = true;
+			}
+			else {
+				cam = 3;
+				car.reset();
+			}
+		}
+
+		void renderGameEnd() {
+			if (win) {
+				cam = 1;
+				RenderText(shaderText, "You win!", 25.0f, 25.0f, 1.0f, 0.5f, 0.8f, 0.2f);
+			}
+		}
+
+		void createFinishLine() {
+
+		  float amb1[] = { 0.3f, 0.0f, 0.0f, 1.0f };
+		  float diff1[] = { 0.8f, 0.1f, 0.1f, 1.0f };
+		  float spec1[] = { 0.0f, 0.9f, 0.9f, 1.0f };
+		  float shininess = 200.0;
+		  float emissive[] = { 0.0f, 0.0f, 0.0f, 1.0f };
+		  int texcount = 0;
+
+			MyMesh amesh;
+
+			amesh = createCube();
+			memcpy(amesh.mat.ambient, amb1, 4 * sizeof(float));
+			memcpy(amesh.mat.diffuse, diff1, 4 * sizeof(float));
+			memcpy(amesh.mat.specular, spec1, 4 * sizeof(float));
+			memcpy(amesh.mat.emissive, emissive, 4 * sizeof(float));
+			amesh.mat.shininess = shininess;
+			amesh.mat.texCount = texcount;
+			myMeshes.push_back(amesh);
+			numObjects++;
+		}
+
+	  void renderFinishLine() {
+		  translate(MODEL, finishLinePos[0], finishLinePos[1], finishLinePos[2]);
+		  //rotate(MODEL, 180.f, 0.0f, 1.0f, 0.0f);
+		  scale(MODEL, finishLineDimensions[0], finishLineDimensions[1], finishLineDimensions[2]);
+	  }
+
+	  void colisionButterCheerio(float* q, float* p) {
+		  float butterCollisionVelocity = 0.8f;
+		  for (int i = 0; i < numButter; i++) {
+			  if (CheckCollision(p[0], p[1], q[0], q[1], butter[j-1].position[0], butter[j-1].position[2], 1, 1)) {
+			  	  printf("COLISAO_BUTTER CPX: %f, CPY: %f, p0: %f, p1: %f, q0: %f, q1:%f\n", game.car.position[0], game.car.position[2], p[0],p[1],q[0],q[1]);
+				  car.velocity = 0;
+				  butter[i].position[0] += car.direction[0] * butterCollisionVelocity;
+				  butter[i].position[1] += car.direction[1] * butterCollisionVelocity;
+				  butter[i].position[2] += car.direction[2] * butterCollisionVelocity;
+			  }
+		  }
+		  //for (int i = 0; i < numCheerios; i++) {
+			 // if (CheckCollision(car.position[0], car.position[2], q[0], q[1], cheerio[i].position[0], cheerio[i].position[2], 1, 1)) {
+				//  car.velocity = 0;
+				//  cheerio[i].position[0] += car.direction[0] * butterCollisionVelocity;
+				//  cheerio[i].position[1] += car.direction[1] * butterCollisionVelocity;
+				//  cheerio[i].position[2] += car.direction[2] * butterCollisionVelocity;
+			 // }
+		  //}
+	  }
+};
+
+Game game;
+
+float lookAtX = game.car.position[0];
+float lookAtY = game.car.position[1];
+float lookAtZ = game.car.position[2];
 
 
 void timer(int value)
@@ -548,13 +608,13 @@ void cam3() {
 
 	float inclination = 10.f;
 	float height = 7;
-	camX = r * sin(alpha_cam3 * 3.14f / 180.0f) * cos(beta_cam3 * 3.14f / 180.0f) + car.position[0];
-	camZ = r * cos(alpha_cam3 * 3.14f / 180.0f) * cos(beta_cam3 * 3.14f / 180.0f) + car.position[2];
+	camX = r * sin(alpha_cam3 * 3.14f / 180.0f) * cos(beta_cam3 * 3.14f / 180.0f) + game.car.position[0];
+	camZ = r * cos(alpha_cam3 * 3.14f / 180.0f) * cos(beta_cam3 * 3.14f / 180.0f) + game.car.position[2];
 	camY = r * sin(inclination * 3.14f / 180.0f) + height;
 
-	lookAtX = car.position[0];
-	lookAtY = car.position[1];
-	lookAtZ = car.position[2];
+	lookAtX = game.car.position[0];
+	lookAtY = game.car.position[1];
+	lookAtZ = game.car.position[2];
 	cam = 3;
 };
 
@@ -584,8 +644,8 @@ float* getCarCenter() {
 	float co = cos(angle);
 	float si = sin(angle);
 
-	Dir[0] = car.direction[0];
-	Dir[1] = car.direction[2];
+	Dir[0] = game.car.direction[0];
+	Dir[1] = game.car.direction[2];
 	float x = Dir[0];
 	float y = Dir[1];
 	Dir[0] = x * co + y * si;
@@ -599,26 +659,30 @@ float* getCarCenter() {
 	//printf("d[0]: % f, d[1] : % f\n", car.direction[0], car.direction[1]);
 	//float dist = sqrt(car.carBodyX * car.carBodyX + car.carBodyY * car.carBodyY) / 2;
 	float dist =  1.677;
-	p[0] = car.position[0] + Dir[0] * dist;
-	p[1] = car.position[2] + Dir[1] * dist;
+	p[0] = game.car.position[0] + Dir[0] * dist;
+	p[1] = game.car.position[2] + Dir[1] * dist;
 
 	return p;
 }
 
 float *getCarSize() {
-	float angle = car.rotationAngle;
+	float angle = game.car.rotationAngle;
 	float radAngle = DegToRad(angle);
 	float co = cos(radAngle);
 	float si = sin(radAngle);
-	float c = co *car.carBodyY;
-	float a = si * car.carBodyY;
+
+	float c = co *game.car.carBodyY;
+	float a = si * game.car.carBodyY;
+
 
 	float angle2 = 90.0 - ((int) angle % 90);
 	float radAngle2 = DegToRad(angle2);
 	float co2 = cos(radAngle2);
 	float si2 = sin(radAngle2);
-	float d = co2 * car.carBodyX;
-	float b = si2 * car.carBodyX;
+
+	float d = co2 * game.car.carBodyX;
+	float b = si2 * game.car.carBodyY;
+
 
 	float y = a + b;
 	float x = c + d;
@@ -648,259 +712,208 @@ void renderScene(void) {
 
 	lookAt(camX, camY, camZ, lookAtX, lookAtY, lookAtZ, 0,1,0);
 	
+	if (!game.isFinished) {
 	
-	// use our shader
-	glUseProgram(shader.getProgramIndex());
+		// use our shader
+		glUseProgram(shader.getProgramIndex());
 
-	//send the light position in eye coordinates
-	//glUniform4fv(lPos_uniformId, 1, lightPos); //efeito capacete do mineiro, ou seja lighPos foi definido em eye coord 
+		//send the light position in eye coordinates
+		//glUniform4fv(lPos_uniformId, 1, lightPos); //efeito capacete do mineiro, ou seja lighPos foi definido em eye coord 
 
-	float res[6][4];
-	float res2[4];
+		float res[6][4];
+		float res2[4];
 
-	for (int i = 0; i < 6; i++) {
-		//printf("Point light = { %.1f, %.1f, %.1f, %.1f}\n", lightPos[i][0], lightPos[i][1], lightPos[i][2], lightPos[i][3]);
-		multMatrixPoint(VIEW, lightPos[i], res[i]);   //lightPos definido em World Coord so is converted to eye space
-		//printf("WORLD COORDS Point light = { %.1f, %.1f, %.1f, %.1f}\n", res[i][0], res[i][1], res[i][2], res[i][3]);
-		//printf("Point light uniform ID= { %d }\n", lPos_uniformId[i]);
+		for (int i = 0; i < 6; i++) {
+			//printf("Point light = { %.1f, %.1f, %.1f, %.1f}\n", lightPos[i][0], lightPos[i][1], lightPos[i][2], lightPos[i][3]);
+			multMatrixPoint(VIEW, lightPos[i], res[i]);   //lightPos definido em World Coord so is converted to eye space
+			//printf("WORLD COORDS Point light = { %.1f, %.1f, %.1f, %.1f}\n", res[i][0], res[i][1], res[i][2], res[i][3]);
+			//printf("Point light uniform ID= { %d }\n", lPos_uniformId[i]);
 
-		glUniform4fv(lPos_uniformId[i], 1, res[i]);
+			glUniform4fv(lPos_uniformId[i], 1, res[i]);
 
-	}
-	//printf("\n\n");		
-	//printf("Directional light = { %.1f, %.1f, %.1f, %.1f}", directionalLight[0], directionalLight[1], directionalLight[2], directionalLight[3]);
+		}
+		//printf("\n\n");		
+		//printf("Directional light = { %.1f, %.1f, %.1f, %.1f}", directionalLight[0], directionalLight[1], directionalLight[2], directionalLight[3]);
 		
-	multMatrixPoint(VIEW, directionalLight, res2);   //lightPos definido em World Coord so is converted to eye space
-	//printf("WORLD COORDS DIRECTIONAL light = { %.1f, %.1f, %.1f, %.1f}\n", res2[0], res2[1], res2[2], res2[3]);
-	glUniform4fv(lDir_uniformId, 1, res2);
+		multMatrixPoint(VIEW, directionalLight, res2);   //lightPos definido em World Coord so is converted to eye space
+		//printf("WORLD COORDS DIRECTIONAL light = { %.1f, %.1f, %.1f, %.1f}\n", res2[0], res2[1], res2[2], res2[3]);
+		glUniform4fv(lDir_uniformId, 1, res2);
 		
-	//printf("spotlight direction = { %.1f, %.1f, %.1f, %.1f}\n", car.spotlights[0]->dir[0], car.spotlights[0]->dir[1], car.spotlights[0]->dir[2], car.spotlights[0]->dir[3]);
-	//printf("spotlight position = { %.1f, %.1f, %.1f, %.1f}\n", car.spotlights[0]->pos[0], car.spotlights[0]->pos[1], car.spotlights[0]->pos[2], car.spotlights[0]->pos[3]);
-	//printf("spotlight cut angle = { %.10f }\n", car.spotlights[0]->ang);
-	float res3[4];
+		//printf("spotlight direction = { %.1f, %.1f, %.1f, %.1f}\n", game.car.spotlights[0]->dir[0], game.car.spotlights[0]->dir[1], game.car.spotlights[0]->dir[2], game.car.spotlights[0]->dir[3]);
+		//printf("spotlight position = { %.1f, %.1f, %.1f, %.1f}\n", game.car.spotlights[0]->pos[0], game.car.spotlights[0]->pos[1], game.car.spotlights[0]->pos[2], game.car.spotlights[0]->pos[3]);
+		//printf("spotlight cut angle = { %.10f }\n", game.car.spotlights[0]->ang);
+		float res3[4];
 
 	
-	multMatrixPoint(VIEW, car.spotlights[0]->dir, res3);
-	//printf("spotlight 0 dir = { %.1f, %.1f, %.1f, %.1f}\n", res2[0], res2[1], res2[2], res2[3]);
-	glUniform4fv(slDir_uniformId[0], 1, res3);
+		multMatrixPoint(VIEW, game.car.spotlights[0]->dir, res3);
+		//printf("spotlight 0 dir = { %.1f, %.1f, %.1f, %.1f}\n", res2[0], res2[1], res2[2], res2[3]);
+		glUniform4fv(slDir_uniformId[0], 1, res3);
 
 
-	float res4[4];
+		float res4[4];
 
-	multMatrixPoint(VIEW, car.spotlights[1]->dir, res4);
-	//printf("spotlight dir= { %.1f, %.1f, %.1f, %.1f}\n", car.spotlights[1]->dir[0], car.spotlights[1]->dir[1], car.spotlights[1]->dir[2], car.spotlights[1]->dir[3]);
-	//printf("spotlight dir res = { %.1f, %.1f, %.1f, %.1f}\n", res2[0], res2[1], res2[2], res2[3]);
-	glUniform4fv(slDir_uniformId[1], 1, res4);
+		multMatrixPoint(VIEW, game.car.spotlights[1]->dir, res4);
+		//printf("spotlight dir= { %.1f, %.1f, %.1f, %.1f}\n", game.car.spotlights[1]->dir[0], game.car.spotlights[1]->dir[1], game.car.spotlights[1]->dir[2], game.car.spotlights[1]->dir[3]);
+		//printf("spotlight dir res = { %.1f, %.1f, %.1f, %.1f}\n", res2[0], res2[1], res2[2], res2[3]);
+		glUniform4fv(slDir_uniformId[1], 1, res4);
 
-	float res5[4];
+		float res5[4];
 
 
-	multMatrixPoint(VIEW, car.spotlights[0]->pos, res5);
-	//printf("spotlight 0 pos = { %.1f, %.1f, %.1f, %.1f}\n", car.spotlights[0]->pos[0], car.spotlights[0]->pos[1], car.spotlights[0]->pos[2], car.spotlights[0]->pos[3]);
-	//printf("spotlight 0 pos res = { %.1f, %.1f, %.1f, %.1f}\n", res2[0], res2[1], res2[2], res2[3]);
+	multMatrixPoint(VIEW, game.car.spotlights[0]->pos, res5);
 	glUniform4fv(slPos_uniformId[0], 1, res5);
 
-	float res6[4];
+		float res6[4];
 
-	multMatrixPoint(VIEW, car.spotlights[1]->pos, res6);
-	//printf("spotlight 1 pos = { %.1f, %.1f, %.1f, %.1f}\n", car.spotlights[1]->pos[0], car.spotlights[1]->pos[1], car.spotlights[1]->pos[2], car.spotlights[1]->pos[3]);
-	//printf("spotlight 1 pos res = { %.1f, %.1f, %.1f, %.1f}\n", res2[0], res2[1], res2[2], res2[3]);
+	multMatrixPoint(VIEW, game.car.spotlights[1]->pos, res6);
 	glUniform4fv(slPos_uniformId[1], 1, res6);
 	
 	
 
-	glUniform1f(slCutOffAngle_uniformId, car.spotlights[0]->ang);
+		glUniform1f(slCutOffAngle_uniformId, game.car.spotlights[0]->ang);
+
+
+	glActiveTexture(GL_TEXTURE0);
+	glBindTexture(GL_TEXTURE_2D, TextureArray[0]);
+
+	glActiveTexture(GL_TEXTURE1);
+	glBindTexture(GL_TEXTURE_2D, TextureArray[1]);
+
+	glActiveTexture(GL_TEXTURE2);
+	glBindTexture(GL_TEXTURE_2D, TextureArray[2]);
+
+
+	//Indicar aos tres samplers do GLSL quais os Texture Units a serem usados
+	glUniform1i(tex_loc, 0);
+	glUniform1i(tex_loc1, 1);
+	glUniform1i(tex_loc2, 2);
 
 	float* p = getCarCenter();
 	float* q = getCarSize();
-	//printf("dir0: %f, dir1: %f", car.direction[0], car.direction[2]);
-	for (int j = 0; j < numButter + 1; j++) {
-		if (j == 0) {
-
-			if (CheckCollision(p[0], p[1], q[0], q[1], orange.position[0], orange.position[2], 2,2)) {
-				printf("COLISAO_ORANGE - gameover \n");
-			}
-			
-		}
-
-		else {
-			if (CheckCollision(p[0], p[1], q[0], q[1], butter[j-1].position[0], butter[j-1].position[2], 1, 1)) {
-				printf("COLISAO_BUTTER CPX: %f, CPY: %f, p0: %f, p1: %f, q0: %f, q1:%f\n", car.position[0], car.position[2], p[0],p[1],q[0],q[1]);
-			}
-			
+	for (int j = 0; j < numButter + numOranges; j++) {
+		if (j < numOranges) {
+			if (CheckCollision(game.car.position[0], game.car.position[2], q[0], q[1], game.orange[j].position[0], game.orange[j].position[2], 2, 2)) {
+				printf("COLISAO_ORANGE\n");
+				game.finishGame(false); 
+			}	
 		}
 	}
 
-	int objId=0; //id of the object mesh - to be used as index of mesh: Mymeshes[objID] means the current mesh
-	for (int i = 0 ; i < numObjects; ++i) {
-//		for (int j = 0; j < 2; ++j) {
+		game.checkFinish(q);
+		game.colisionButterCheerio(q, p);
+		int objId=0; //id of the object mesh - to be used as index of mesh: Mymeshes[objID] means the current mesh
+		for (int i = 0 ; i < numObjects; ++i) {
+	//		for (int j = 0; j < 2; ++j) {
 
-			// send the material
-			loc = glGetUniformLocation(shader.getProgramIndex(), "mat.ambient");
-			glUniform4fv(loc, 1, myMeshes[objId].mat.ambient);
-			loc = glGetUniformLocation(shader.getProgramIndex(), "mat.diffuse");
-			glUniform4fv(loc, 1, myMeshes[objId].mat.diffuse);
-			loc = glGetUniformLocation(shader.getProgramIndex(), "mat.specular");
-			glUniform4fv(loc, 1, myMeshes[objId].mat.specular);
-			loc = glGetUniformLocation(shader.getProgramIndex(), "mat.shininess");
-			glUniform1f(loc, myMeshes[objId].mat.shininess);
-			pushMatrix(MODEL);
+				// send the material
+				loc = glGetUniformLocation(shader.getProgramIndex(), "mat.ambient");
+				glUniform4fv(loc, 1, myMeshes[objId].mat.ambient);
+				loc = glGetUniformLocation(shader.getProgramIndex(), "mat.diffuse");
+				glUniform4fv(loc, 1, myMeshes[objId].mat.diffuse);
+				loc = glGetUniformLocation(shader.getProgramIndex(), "mat.specular");
+				glUniform4fv(loc, 1, myMeshes[objId].mat.specular);
+				loc = glGetUniformLocation(shader.getProgramIndex(), "mat.shininess");
+				glUniform1f(loc, myMeshes[objId].mat.shininess);
+				pushMatrix(MODEL);
 			
-			// TODO THIS IS SHIT I WANT THIS WHEN DEFINING THE VO in the init() func
-			// Values correspond to 0,0 on the table coords = wc
-			float torusY = 1.0f; //z in world coords
-			float carBodyZ = 1.5f;
-			float carBodyX = 3.0f;
-			float jointCarGap = 0.5f;
+				// TODO THIS IS SHIT I WANT THIS WHEN DEFINING THE VO in the init() func
+				// Values correspond to 0,0 on the table coords = wc
+				float torusY = 1.0f; //z in world coords
+				float carBodyZ = 1.5f;
+				float carBodyX = 3.0f;
+				float jointCarGap = 0.5f;
 			
-			//car.move();
-			float* position = car.position;
+				//game.car.move();
+				float* position = game.car.position;
 
-			float p;
-			float q;
+				float p;
+				float q;
 			
-			switch (objId) {
-			case 0:
-				//table
-				translate(MODEL, 0.0f, 0.0f, 0.0f);
-				scale(MODEL, tableX, tableY, tableZ);
+				switch (objId) {
+				case 0:
+					//table
+					translate(MODEL, 0.0f, 0.0f, 0.0f);
+					scale(MODEL, tableX, tableY, tableZ);
 
-				break;
-				/*
+					break;
 				case 1:
-					//road
-					translate(MODEL, 0.0f, 0.1f, 40.0f);
-					scale(MODEL, 100, 0.5, 5);
-					break;*/
-			case 1:
-				//orange
-				orange.move();
-				if (!orange.isOnTable()) {
-					orange.reset();
-				}
-				translate(MODEL, orange.position[0], orange.position[1], orange.position[2]);
-				orange.roll();
-				rotate(MODEL, orange.rotationAngle, orange.direction[0], orange.direction[1], orange.direction[2]);
-				orange.accelerate();
-				break;
-			case 2:
-				//car wheel torus RIGHT TOP
-				translate(MODEL, position[0] + (carBodyZ)*sin(DegToRad(car.directionAngle)) + (carBodyX - jointCarGap) * cos(DegToRad(car.directionAngle)), position[1] + torusY, position[2] + carBodyZ * cos(DegToRad(car.directionAngle)) - (carBodyX - jointCarGap) * sin(DegToRad(car.directionAngle)));
-				rotate(MODEL, car.directionAngle, 0.0f, 1.0f, 0.0f);
-				rotate(MODEL, 90.0f, 1.0f, 0.0f, 0.0f);
+				case 2:
+				case 3:
+				case 4:
+				case 5:
+					//orange
+					game.orange[objId - 1].renderOrange();
+					break;
+				case 6:
+					//car wheel torus RIGHT TOP
+					translate(MODEL, position[0] + (carBodyZ)*sin(DegToRad(game.car.directionAngle)) + (carBodyX - jointCarGap) * cos(DegToRad(game.car.directionAngle)), position[1] + torusY, position[2] + carBodyZ * cos(DegToRad(game.car.directionAngle)) - (carBodyX - jointCarGap) * sin(DegToRad(game.car.directionAngle)));
+					rotate(MODEL, game.car.directionAngle, 0.0f, 1.0f, 0.0f);
+					rotate(MODEL, 90.0f, 1.0f, 0.0f, 0.0f);
 
-				break;
-			case 3:
-				//car wheel torus LEFT TOP
-				translate(MODEL, position[0] + (carBodyX - jointCarGap) * cos(DegToRad(car.directionAngle)), position[1] + torusY, position[2] - (carBodyX - jointCarGap) * sin(DegToRad(car.directionAngle)));
-				rotate(MODEL, car.directionAngle, 0.0f, 1.0f, 0.0f);
-				rotate(MODEL, 90.0f, 1.0f, 0.0f, 0.0f);
+					break;
+				case 7:
+					//car wheel torus LEFT TOP
+					translate(MODEL, position[0] + (carBodyX - jointCarGap) * cos(DegToRad(game.car.directionAngle)), position[1] + torusY, position[2] - (carBodyX - jointCarGap) * sin(DegToRad(game.car.directionAngle)));
+					rotate(MODEL, game.car.directionAngle, 0.0f, 1.0f, 0.0f);
+					rotate(MODEL, 90.0f, 1.0f, 0.0f, 0.0f);
 
-				break;
+					break;
 
-			case 4:
-				//car wheel torus RIGHT BOTTOM
+				case 8:
+					//car wheel torus RIGHT BOTTOM
 				
-				translate(MODEL, position[0] + carBodyZ * sin(DegToRad(car.directionAngle)) + (jointCarGap * cos(DegToRad(car.directionAngle))), position[1] + torusY, position[2] + (carBodyZ* cos(car.directionAngle * 3.14159265358979323846f / 180)) - (jointCarGap * sin(car.directionAngle * 3.14159265358979323846f / 180)));
-				rotate(MODEL, car.directionAngle, 0.0f, 1.0f, 0.0f);
-				rotate(MODEL, 90.0f, 1.0f, 0.0f, 0.0f);
+					translate(MODEL, position[0] + carBodyZ * sin(DegToRad(game.car.directionAngle)) + (jointCarGap * cos(DegToRad(game.car.directionAngle))), position[1] + torusY, position[2] + (carBodyZ* cos(game.car.directionAngle * 3.14159265358979323846f / 180)) - (jointCarGap * sin(game.car.directionAngle * 3.14159265358979323846f / 180)));
+					rotate(MODEL, game.car.directionAngle, 0.0f, 1.0f, 0.0f);
+					rotate(MODEL, 90.0f, 1.0f, 0.0f, 0.0f);
 
-				break;
-			case 5:
-				//car wheel torus LEFT BOTTOM
+					break;
+				case 9:
+					//car wheel torus LEFT BOTTOM
 
-				translate(MODEL, position[0] + jointCarGap * cos(DegToRad(car.directionAngle)), position[1] + torusY, position[2] - jointCarGap * sin(DegToRad(car.directionAngle)));
-				rotate(MODEL, car.directionAngle, 0.0f, 1.0f, 0.0f);
-				rotate(MODEL, 90.0f, 1.0f, 0.0f, 0.0f);
-				break;
-			case 6:
-				//car body
-				translate(MODEL, position[0], position[1] + torusY - 0.2f, position[2]);
-				rotate(MODEL, car.directionAngle, 0.0f, 1.0f, 0.0f);
-				scale(MODEL, carBodyX, 0.5, carBodyZ);
+					translate(MODEL, position[0] + jointCarGap * cos(DegToRad(game.car.directionAngle)), position[1] + torusY, position[2] - jointCarGap * sin(DegToRad(game.car.directionAngle)));
+					rotate(MODEL, game.car.directionAngle, 0.0f, 1.0f, 0.0f);
+					rotate(MODEL, 90.0f, 1.0f, 0.0f, 0.0f);
+					break;
+				case 10:
+					//car body
+					translate(MODEL, position[0], position[1] + torusY - 0.2f, position[2]);
+					rotate(MODEL, game.car.directionAngle, 0.0f, 1.0f, 0.0f);
+					scale(MODEL, carBodyX, 0.5, carBodyZ);
+					break;
 			
-				break;
-			
-			
-			};
+				case 11:
+					game.renderFinishLine();
+					break;
+				};
 
 			
-			// send matrices to OGL
-			computeDerivedMatrix(PROJ_VIEW_MODEL);
-			glUniformMatrix4fv(vm_uniformId, 1, GL_FALSE, mCompMatrix[VIEW_MODEL]);
-			glUniformMatrix4fv(pvm_uniformId, 1, GL_FALSE, mCompMatrix[PROJ_VIEW_MODEL]);
-			computeNormalMatrix3x3();
-			glUniformMatrix3fv(normal_uniformId, 1, GL_FALSE, mNormal3x3);
+				// send matrices to OGL
+				computeDerivedMatrix(PROJ_VIEW_MODEL);
+				glUniformMatrix4fv(vm_uniformId, 1, GL_FALSE, mCompMatrix[VIEW_MODEL]);
+				glUniformMatrix4fv(pvm_uniformId, 1, GL_FALSE, mCompMatrix[PROJ_VIEW_MODEL]);
+				computeNormalMatrix3x3();
+				glUniformMatrix3fv(normal_uniformId, 1, GL_FALSE, mNormal3x3);
 
 			// Render mesh
+			if (objId == 0) glUniform1i(texMode_uniformId, 0);
+			else if (objId == 11) glUniform1i(texMode_uniformId, 2);
+			else glUniform1i(texMode_uniformId, 3);
+
 			glBindVertexArray(myMeshes[objId].vao);
 			
-			if (!shader.isProgramValid()) {
-				printf("Program Not Valid!\n");
-				exit(1);	
-			}
-			glDrawElements(myMeshes[objId].type, myMeshes[objId].numIndexes, GL_UNSIGNED_INT, 0);
-			glBindVertexArray(0);
+				if (!shader.isProgramValid()) {
+					printf("Program Not Valid!\n");
+					exit(1);	
+				}
+				glDrawElements(myMeshes[objId].type, myMeshes[objId].numIndexes, GL_UNSIGNED_INT, 0);
+				glBindVertexArray(0);
 
-			popMatrix(MODEL);
-			objId++;
-		//}
-	}
-
-	for (int y = 0; y < numButter; y++) {
-		// send the material
-		loc = glGetUniformLocation(shader.getProgramIndex(), "mat.ambient");
-		glUniform4fv(loc, 1, myMeshes[objId].mat.ambient);
-		loc = glGetUniformLocation(shader.getProgramIndex(), "mat.diffuse");
-		glUniform4fv(loc, 1, myMeshes[objId].mat.diffuse);
-		loc = glGetUniformLocation(shader.getProgramIndex(), "mat.specular");
-		glUniform4fv(loc, 1, myMeshes[objId].mat.specular);
-		loc = glGetUniformLocation(shader.getProgramIndex(), "mat.shininess");
-		glUniform1f(loc, myMeshes[objId].mat.shininess);
-		pushMatrix(MODEL);
-
-		// TODO THIS IS SHIT I WANT THIS WHEN DEFINING THE VO in the init() func
-		// Values correspond to 0,0 on the table coords = wc
-		float torusY = 1.0f; //z in world coords
-		float carBodyX = 1.5f;
-		float carBodyY = 3.0f;
-		float jointCarGap = -0.5f;
-
-		car.move();
-		float* position = car.position;
-
-		//butter
-		translate(MODEL, butter[y].position[0], butter[y].position[1], butter[y].position[2]);
-		//scale(MODEL, 4, 2, 5);
-
-		// send matrices to OGL
-		computeDerivedMatrix(PROJ_VIEW_MODEL);
-		glUniformMatrix4fv(vm_uniformId, 1, GL_FALSE, mCompMatrix[VIEW_MODEL]);
-		glUniformMatrix4fv(pvm_uniformId, 1, GL_FALSE, mCompMatrix[PROJ_VIEW_MODEL]);
-		computeNormalMatrix3x3();
-		glUniformMatrix3fv(normal_uniformId, 1, GL_FALSE, mNormal3x3);
-
-		// Render mesh
-		glBindVertexArray(myMeshes[objId].vao);
-
-		if (!shader.isProgramValid()) {
-			printf("Program Not Valid!\n");
-			exit(1);
+				popMatrix(MODEL);
+				objId++;
+			//}
 		}
-		glDrawElements(myMeshes[objId].type, myMeshes[objId].numIndexes, GL_UNSIGNED_INT, 0);
-		glBindVertexArray(0);
 
-		popMatrix(MODEL);
-		objId++;
-
-	}
-
-	for (int j = 0; j < mapRows; j++) {
-		for (int k = 0; k < mapCols; k++) {
-			if (mapRoad[j][k] == 0) {
-				continue;
-			}
-			//printf("numR:  %d", numRoads);
+		for (int y = 0; y < numButter; y++) {
 			// send the material
 			loc = glGetUniformLocation(shader.getProgramIndex(), "mat.ambient");
 			glUniform4fv(loc, 1, myMeshes[objId].mat.ambient);
@@ -919,17 +932,13 @@ void renderScene(void) {
 			float carBodyY = 3.0f;
 			float jointCarGap = -0.5f;
 
-			car.move();
-			float* position = car.position;
+			game.car.move();
+			float* position = game.car.position;
 
-			if (mapRoad[j][k] == 1) {
-				translate(MODEL, roadWidth*k, 0.1f, roadWidth*j);
-				scale(MODEL, roadWidth, 0.5, roadWidth);
-			}
-			else if (mapRoad[j][k] == 2) {
-				translate(MODEL, roadTurn*k, 0.1f, roadTurn*j);
-				scale(MODEL, roadTurn, 0.5, roadTurn);
-			}
+			//butter
+			translate(MODEL, game.butter[y].position[0], game.butter[y].position[1], game.butter[y].position[2]);
+			//scale(MODEL, 4, 2, 5);
+
 			// send matrices to OGL
 			computeDerivedMatrix(PROJ_VIEW_MODEL);
 			glUniformMatrix4fv(vm_uniformId, 1, GL_FALSE, mCompMatrix[VIEW_MODEL]);
@@ -938,6 +947,7 @@ void renderScene(void) {
 			glUniformMatrix3fv(normal_uniformId, 1, GL_FALSE, mNormal3x3);
 
 			// Render mesh
+			glUniform1i(texMode_uniformId, 3);
 			glBindVertexArray(myMeshes[objId].vao);
 
 			if (!shader.isProgramValid()) {
@@ -949,9 +959,68 @@ void renderScene(void) {
 
 			popMatrix(MODEL);
 			objId++;
+
+		}
+
+		for (int j = 0; j < mapRows; j++) {
+			for (int k = 0; k < mapCols; k++) {
+				if (mapRoad[j][k] == 0) {
+					continue;
+				}
+				//printf("numR:  %d", numRoads);
+				// send the material
+				loc = glGetUniformLocation(shader.getProgramIndex(), "mat.ambient");
+				glUniform4fv(loc, 1, myMeshes[objId].mat.ambient);
+				loc = glGetUniformLocation(shader.getProgramIndex(), "mat.diffuse");
+				glUniform4fv(loc, 1, myMeshes[objId].mat.diffuse);
+				loc = glGetUniformLocation(shader.getProgramIndex(), "mat.specular");
+				glUniform4fv(loc, 1, myMeshes[objId].mat.specular);
+				loc = glGetUniformLocation(shader.getProgramIndex(), "mat.shininess");
+				glUniform1f(loc, myMeshes[objId].mat.shininess);
+				pushMatrix(MODEL);
+
+				// TODO THIS IS SHIT I WANT THIS WHEN DEFINING THE VO in the init() func
+				// Values correspond to 0,0 on the table coords = wc
+				float torusY = 1.0f; //z in world coords
+				float carBodyX = 1.5f;
+				float carBodyY = 3.0f;
+				float jointCarGap = -0.5f;
+
+				game.car.move();
+				float* position = game.car.position;
+
+				if (mapRoad[j][k] == 1) {
+					translate(MODEL, roadWidth * k, 0.1f, roadWidth * j);
+					scale(MODEL, roadWidth, 0.5, roadWidth);
+				}
+				else if (mapRoad[j][k] == 2) {
+					translate(MODEL, roadTurn * k, 0.1f, roadTurn * j);
+					scale(MODEL, roadTurn, 0.5, roadTurn);
+				}
+				// send matrices to OGL
+				computeDerivedMatrix(PROJ_VIEW_MODEL);
+				glUniformMatrix4fv(vm_uniformId, 1, GL_FALSE, mCompMatrix[VIEW_MODEL]);
+				glUniformMatrix4fv(pvm_uniformId, 1, GL_FALSE, mCompMatrix[PROJ_VIEW_MODEL]);
+				computeNormalMatrix3x3();
+				glUniformMatrix3fv(normal_uniformId, 1, GL_FALSE, mNormal3x3);
+
+				// Render mesh
+				glUniform1i(texMode_uniformId, 1);
+				glBindVertexArray(myMeshes[objId].vao);
+
+				if (!shader.isProgramValid()) {
+					printf("Program Not Valid!\n");
+					exit(1);
+				}
+				glDrawElements(myMeshes[objId].type, myMeshes[objId].numIndexes, GL_UNSIGNED_INT, 0);
+				glBindVertexArray(0);
+
+				popMatrix(MODEL);
+				objId++;
+			}
 		}
 	}
-
+	
 	//Render text (bitmap fonts) in screen coordinates. So use ortoghonal projection with viewport coordinates.
 	glDisable(GL_DEPTH_TEST);
 	//the glyph contains background colors and non-transparent for the actual character pixels. So we use the blending
@@ -983,6 +1052,9 @@ void renderScene(void) {
 		cam3();
 		//printf("cam3");
 		break;
+	}
+	if (game.isFinished) {
+		game.renderGameEnd();
 	}
 	//RenderText(shaderText, "This is a sample text", 25.0f, 25.0f, 1.0f, 0.5f, 0.8f, 0.2f);
 	//RenderText(shaderText, "CGJ Light and Text Rendering Demo", 440.0f, 570.0f, 0.5f, 0.3, 0.7f, 0.9f);
@@ -1037,13 +1109,13 @@ void processKeys(unsigned char key, int xx, int yy)
 			// SPOTLIGHTS --> ILUMINACAO COMO SE FOSSE AS LUZES FRONTEIRAS DO CARRO
 			if (isSpotLightsOn) {
 				for (int i = 0; i < 2; i++) {
-					car.spotlights[i]->pos[3] = 0.0f;
+					game.car.spotlights[i]->pos[3] = 0.0f;
 				}
 				isSpotLightsOn = false;
 			}
 			else {
 				for (int i = 0; i < 2; i++) {
-					car.spotlights[i]->pos[3] = 1.0f;
+					game.car.spotlights[i]->pos[3] = 1.0f;
 				}
 				isSpotLightsOn = true;
 			}
@@ -1079,7 +1151,7 @@ void processKeys(unsigned char key, int xx, int yy)
 
 void keyOperations() {
 
-	float* direction = car.direction;
+	float* direction = game.car.direction;
 
 	if (keyStates[27]) {
 		glutLeaveMainLoop();
@@ -1088,76 +1160,76 @@ void keyOperations() {
 	if (keyStates['q']) {
 		//move forward
 
-		if (car.isForward == false) {  //if car wants to go forward when it's reversing
-			car.velocity -= 0.00032;
-			if (car.velocity < 0) {
-				car.velocity = 0;
+		if (game.car.isForward == false) {  //if car wants to go forward when it's reversing
+			game.car.velocity -= 0.00032;
+			if (game.car.velocity < 0) {
+				game.car.velocity = 0;
 				for (int i = 0; i < 3; i++) {
 					direction[i] = -direction[i];
 				}
-				car.isForward = true;
+				game.car.isForward = true;
 			}
 		}
 		else{
-			car.velocity += 0.00008;
-			if (car.velocity > car.maxVelocity) {
-				car.velocity = car.maxVelocity;
+			game.car.velocity += 0.00008;
+			if (game.car.velocity > game.car.maxVelocity) {
+				game.car.velocity = game.car.maxVelocity;
 			}
 		}
-		car.move();
+		game.car.move();
 	}
 
 	if (keyStates['a']) {
 		//move backwards
-		if (car.isForward == true) {  //if car wants to go backward (similar to braking)
-			car.velocity -= 0.00032;
-			if (car.velocity < 0) {
-				car.velocity = 0;
+		if (game.car.isForward == true) {  //if car wants to go backward (similar to braking)
+			game.car.velocity -= 0.00032;
+			if (game.car.velocity < 0) {
+				game.car.velocity = 0;
 				for (int i = 0; i < 3; i++) {
 					direction[i] = -direction[i];
 				}
-				car.isForward = false;
+				game.car.isForward = false;
 			}
 		}
 		else {
-			car.velocity += 0.00008;
-			if (car.velocity > car.maxVelocity) {
-				car.velocity = car.maxVelocity;
+			game.car.velocity += 0.00008;
+			if (game.car.velocity > game.car.maxVelocity) {
+				game.car.velocity = game.car.maxVelocity;
 			}
 		}
-		car.move();
+		game.car.move();
 	}
 
 	
-	if (keyStates['p'] && car.velocity > 0) {
+	if (keyStates['p'] && game.car.velocity > 0) {
 		//move left
 		if (!keyStates['q'] && !keyStates['a']) {
-			car.velocity -= 0.00016;
-			if (car.velocity < 0) {
-				car.velocity = 0;
+			game.car.velocity -= 0.00016;
+			if (game.car.velocity < 0) {
+				game.car.velocity = 0;
 			}
 		}
-		if (car.isForward == true && car.velocity > 0) {
-			car.changeDirection(true);
+		if (game.car.isForward == true && game.car.velocity > 0) {
+			game.car.changeDirection(true);
 		}
-		else if (car.isForward == false && car.velocity > 0) {
-			car.changeDirection(false);
+		else if (game.car.isForward == false && game.car.velocity > 0) {
+			game.car.changeDirection(false);
 		}
 	}
 
-	if (keyStates['o'] && car.velocity > 0) {
+	if (keyStates['o'] && game.car.velocity > 0) {
 		//move left
 		if (!keyStates['q'] && !keyStates['a']) {
-			car.velocity -= 0.00008;
-			if (car.velocity < 0) {
-				car.velocity = 0;
+			game.car.velocity -= 0.00008;
+			if (game.car.velocity < 0) {
+				game.car.velocity = 0;
 			}
 		}
-		if (car.isForward == true && car.velocity > 0) {
-			car.changeDirection(false);
+		if (game.car.isForward == true && game.car.velocity > 0) {
+			game.car.changeDirection(false);
 		}
-		else if (car.isForward == false && car.velocity > 0) {
-			car.changeDirection(true);
+		else if (game.car.isForward == false && game.car.velocity > 0) {
+			game.car.changeDirection(true);
 		}
 	}
 
@@ -1167,14 +1239,14 @@ void keyOperations() {
 		}
 	}
 
-	car.velocity -= 0.00016;
-	if (car.velocity < 0) {
-		car.velocity = 0;
+	game.car.velocity -= 0.00016;
+	if (game.car.velocity < 0) {
+		game.car.velocity = 0;
 	}
-	else if (car.velocity > car.maxVelocity) {
-		car.velocity = car.maxVelocity;
+	else if (game.car.velocity > game.car.maxVelocity) {
+		game.car.velocity = game.car.maxVelocity;
 	}
-	car.updateSpotlights();
+	game.car.updateSpotlights();
 
 }
 
@@ -1216,13 +1288,13 @@ void keyUp(unsigned char key, int x, int y) {
 			// SPOTLIGHTS --> ILUMINACAO COMO SE FOSSE AS LUZES FRONTEIRAS DO CARRO
 		if (isSpotLightsOn) {
 			for (int i = 0; i < 2; i++) {
-				car.spotlights[i]->pos[3] = 0.0f;
+				game.car.spotlights[i]->pos[3] = 0.0f;
 			}
 			isSpotLightsOn = false;
 		}
 		else {
 			for (int i = 0; i < 2; i++) {
-				car.spotlights[i]->pos[3] = 1.0f;
+				game.car.spotlights[i]->pos[3] = 1.0f;
 			}
 			isSpotLightsOn = true;
 		}
@@ -1248,9 +1320,9 @@ void keyUp(unsigned char key, int x, int y) {
 		break;
 	case '4':   //DEBUG MOVIMENTO DO CARRO
 		for (int i = 0; i < 3; i++) {
-			cout << "\ndir " << car.direction[i];
+			cout << "\ndir " << game.car.direction[i];
 		}
-		cout << "\nis Forward  " << car.isForward;
+		cout << "\nis Forward  " << game.car.isForward;
 
 		break;
 	default:
@@ -1393,6 +1465,8 @@ GLuint setupShaders() {
 
 	glLinkProgram(shader.getProgramIndex());
 
+
+	texMode_uniformId = glGetUniformLocation(shader.getProgramIndex(), "texMode"); // different modes of texturing
 	pvm_uniformId = glGetUniformLocation(shader.getProgramIndex(), "m_pvm");
 	vm_uniformId = glGetUniformLocation(shader.getProgramIndex(), "m_viewModel");
 	normal_uniformId = glGetUniformLocation(shader.getProgramIndex(), "m_normal");
@@ -1484,6 +1558,12 @@ void init()
 	camZ = r * cos(alpha * 3.14f / 180.0f) * cos(beta * 3.14f / 180.0f);
 	camY = r * sin(beta * 3.14f / 180.0f);
 
+	glGenTextures(2, TextureArray);
+	Texture2D_Loader(TextureArray, "lightwood.tga", 0);
+	Texture2D_Loader(TextureArray, "road.jpg", 1);
+	Texture2D_Loader(TextureArray, "finishline.jpg", 2);
+
+
 	numRoads = CalcRoads();
 
 
@@ -1553,15 +1633,17 @@ void init()
 
 	float amb2[] = { 1.0f, 0.647f, 0.0f, 1.0f };
 	// ORANGE
-	amesh = createSphere(1.0f, 20);
-	memcpy(amesh.mat.ambient, amb2, 4 * sizeof(float));
-	memcpy(amesh.mat.diffuse, diff, 4 * sizeof(float));
-	memcpy(amesh.mat.specular, spec, 4 * sizeof(float));
-	memcpy(amesh.mat.emissive, emissive, 4 * sizeof(float));
-	amesh.mat.shininess = shininess;
-	amesh.mat.texCount = texcount;
-	myMeshes.push_back(amesh);
-	numObjects++;
+	for (int i = 0; i < numOranges; i++) {
+		amesh = createSphere(1.0f, 20);
+		memcpy(amesh.mat.ambient, amb2, 4 * sizeof(float));
+		memcpy(amesh.mat.diffuse, diff, 4 * sizeof(float));
+		memcpy(amesh.mat.specular, spec, 4 * sizeof(float));
+		memcpy(amesh.mat.emissive, emissive, 4 * sizeof(float));
+		amesh.mat.shininess = shininess;
+		amesh.mat.texCount = texcount;
+		myMeshes.push_back(amesh);
+		numObjects++;
+	}
 
 	// Car
 	float amb3[] = { 0.0f, 0.0f, 0.0f, 0.0f };
@@ -1588,7 +1670,9 @@ void init()
 	amesh.mat.texCount = texcount;
 	myMeshes.push_back(amesh);
 	numObjects++;
-	
+
+	game.createFinishLine();
+
 	//Butter
 	for (int i = 0; i < numButter; i++) {
 		amesh = createCube();
@@ -1609,16 +1693,28 @@ void init()
 		memcpy(amesh.mat.diffuse, diff1, 4 * sizeof(float));
 		memcpy(amesh.mat.specular, spec1, 4 * sizeof(float));
 		memcpy(amesh.mat.emissive, emissive, 4 * sizeof(float));
-		amesh.mat.shininess = shininess;
+		amesh.mat.shininess = 500;
 		amesh.mat.texCount = texcount;
 		myMeshes.push_back(amesh);
 		//numObjects++;
 	};
+	
+	// Cheerios
+	//for (int i = 0; i < numRoads; i++) {
 
-
+	//	amesh = createTorus(0.1f, 0.5f, 20, 20);
+	//	memcpy(amesh.mat.ambient, amb3, 4 * sizeof(float));
+	//	memcpy(amesh.mat.diffuse, diff2, 4 * sizeof(float));
+	//	memcpy(amesh.mat.specular, spec2, 4 * sizeof(float));
+	//	memcpy(amesh.mat.emissive, emissive, 4 * sizeof(float));
+	//	amesh.mat.shininess = shininess;
+	//	amesh.mat.texCount = texcount;
+	//	myMeshes.push_back(amesh);
+	//	numObjects++;
+	//};
 	
 	// some GL settings
-	glEnable(GL_DEPTH_TEST);
+	//glEnable(GL_DEPTH_TEST);
 	glEnable(GL_CULL_FACE);
 	glEnable(GL_MULTISAMPLE);
 	glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
