@@ -83,10 +83,10 @@ GLint lDir_uniformId;
 GLint slDir_uniformId[2];
 GLint slPos_uniformId[2];
 GLint slCutOffAngle_uniformId;
-GLint tex_loc, tex_loc1;
+GLint tex_loc, tex_loc1, tex_loc2;
 GLint texMode_uniformId;
 
-GLuint TextureArray[2];
+GLuint TextureArray[3];
 	
 // Camera Position
 float camX, camY, camZ;
@@ -147,7 +147,7 @@ int mapRoad[10][10] = { {1, 1, 1, 0, 0, 0, 0, 0, 0, 0},//1
 						{1, 0, 0, 0, 0, 0, 0, 0, 0, 0},//7
 						{1, 0, 0, 1, 1, 1, 1, 0, 0, 0},//8
 						{1, 0, 0, 1, 0, 0, 1, 0, 0, 0},//9
-						{1, 1, 1, 1, 0, 0, 1, 1, 1, 1} };//10
+						{1, 1, 1, 1, 0, 0, 1, 1, 1, 0} };//10
 
 int mapRows = sizeof(mapRoad) / sizeof(mapRoad[0]);
 int mapCols = sizeof(mapRoad[0]) / sizeof(mapRoad[0][0]);
@@ -236,12 +236,14 @@ class Car {
 			float marginZ[2] = { 0.f, carBodyX };
 
 			float forward;
+			
 			if (!isForward) {
 				forward = -1;
 			}
 			else {
 				forward = 1;
 			}
+			
 			for (int i = 0; i < 2; i++) {
 				// SPOTLIGHTS DIRECTION
 				for (int j = 0; j < 4; j++) {
@@ -266,9 +268,8 @@ class Car {
 			spotlights[0]->pos[2] = position[2] - marginX[0] * sin(DegToRad(directionAngle));
 
 		}
-
 		void reset() {
-			direction[0] = 1; 
+			direction[0] = 1;
 			for (int i = 0; i < 3; i++) {
 				position[i] = 0;
 				direction[i + 1] = 0;
@@ -276,9 +277,9 @@ class Car {
 			directionAngle = 0;
 			alpha_cam3 = -90.0f;
 			beta_cam3 = 0.0f;
+			isForward = true;
 			updateSpotlights();
 		}
-
 		void move() {
 			position[0] += direction[0] * velocity;
 			position[1] += direction[1] * velocity;
@@ -399,7 +400,7 @@ public:
 
 class Butter {
 public:
-	float position[3] = { 0.0f, 1.5f, 0.0f };
+	float position[3] = { 0.0f, 0.5f, 0.0f };
 	float rotationAngle = 0;
 
 	Butter() {
@@ -431,41 +432,41 @@ public:
 
 
 class Game {
-public:Car car;
-public:Orange orange[numOranges];
-public:Butter butter[numButter];
-public:float finishLineDimensions[3] = { 1, 1, roadWidth };
-public:float finishLinePos[3] = { tableX - finishLineDimensions[0] - 1, 1, tableZ - finishLineDimensions[2] - 0.5f };
-public:bool isFinished = false;
-public:bool win;
-	  void checkFinish(float* q) {
-		  if (CheckCollision(car.position[0], car.position[2], q[0], q[1], finishLinePos[0], finishLinePos[2], finishLineDimensions[0], finishLineDimensions[2])) {
-			  printf("FIM DA CORRIDA\n");
-			  finishGame(true);
-		  }
-	  }
+	public:Car car;
+	public:Orange orange[numOranges];
+	public:Butter butter[numButter];
+	public:float finishLineDimensions[3] = {roadWidth, 0.6, roadWidth};
+	public:float finishLinePos[3] = {tableX - finishLineDimensions[0], 0, tableZ - finishLineDimensions[2]};
+	public:bool isFinished = false;
+	public:bool win;
+		void checkFinish(float* q) {
+			if (CheckCollision(car.position[0], car.position[2], q[0], q[1], finishLinePos[0], finishLinePos[2], finishLineDimensions[0], finishLineDimensions[2])) {
+				printf("FIM DA CORRIDA\n");
+				finishGame(true);
+			}
+		}
 
-	  void finishGame(bool win) {
-		  if (win) {
-			  cam = 1;
-			  this->win = win;
-			  RenderText(shaderText, "You win!", 25.0f, 25.0f, 1.0f, 0.5f, 0.8f, 0.2f);
-			  isFinished = true;
-		  }
-		  else {
-			  cam = 3;
-			  car.reset();
-		  }
-	  }
+		void finishGame(bool win) {
+			if (win) {
+				cam = 1;
+				this->win = win;
+				RenderText(shaderText, "You win!", 25.0f, 25.0f, 1.0f, 0.5f, 0.8f, 0.2f);
+				isFinished = true;
+			}
+			else {
+				cam = 3;
+				car.reset();
+			}
+		}
 
-	  void renderGameEnd() {
-		  if (win) {
-			  cam = 1;
-			  RenderText(shaderText, "You win!", 25.0f, 25.0f, 1.0f, 0.5f, 0.8f, 0.2f);
-		  }
-	  }
+		void renderGameEnd() {
+			if (win) {
+				cam = 1;
+				RenderText(shaderText, "You win!", 25.0f, 25.0f, 1.0f, 0.5f, 0.8f, 0.2f);
+			}
+		}
 
-	  void createFinishLine() {
+		void createFinishLine() {
 
 		  float amb1[] = { 0.3f, 0.0f, 0.0f, 1.0f };
 		  float diff1[] = { 0.8f, 0.1f, 0.1f, 1.0f };
@@ -474,18 +475,18 @@ public:bool win;
 		  float emissive[] = { 0.0f, 0.0f, 0.0f, 1.0f };
 		  int texcount = 0;
 
-		  MyMesh amesh;
+			MyMesh amesh;
 
-		  amesh = createCube();
-		  memcpy(amesh.mat.ambient, amb1, 4 * sizeof(float));
-		  memcpy(amesh.mat.diffuse, diff1, 4 * sizeof(float));
-		  memcpy(amesh.mat.specular, spec1, 4 * sizeof(float));
-		  memcpy(amesh.mat.emissive, emissive, 4 * sizeof(float));
-		  amesh.mat.shininess = shininess;
-		  amesh.mat.texCount = texcount;
-		  myMeshes.push_back(amesh);
-		  numObjects++;
-	  }
+			amesh = createCube();
+			memcpy(amesh.mat.ambient, amb1, 4 * sizeof(float));
+			memcpy(amesh.mat.diffuse, diff1, 4 * sizeof(float));
+			memcpy(amesh.mat.specular, spec1, 4 * sizeof(float));
+			memcpy(amesh.mat.emissive, emissive, 4 * sizeof(float));
+			amesh.mat.shininess = shininess;
+			amesh.mat.texCount = texcount;
+			myMeshes.push_back(amesh);
+			numObjects++;
+		}
 
 	  void renderFinishLine() {
 		  translate(MODEL, finishLinePos[0], finishLinePos[1], finishLinePos[2]);
@@ -737,10 +738,14 @@ void renderScene(void) {
 	glActiveTexture(GL_TEXTURE1);
 	glBindTexture(GL_TEXTURE_2D, TextureArray[1]);
 
+	glActiveTexture(GL_TEXTURE2);
+	glBindTexture(GL_TEXTURE_2D, TextureArray[2]);
 
-	//Indicar aos dois samplers do GLSL quais os Texture Units a serem usados
-	glUniform1i(tex_loc, 1);
-	glUniform1i(tex_loc1, 0);
+
+	//Indicar aos tres samplers do GLSL quais os Texture Units a serem usados
+	glUniform1i(tex_loc, 0);
+	glUniform1i(tex_loc1, 1);
+	glUniform1i(tex_loc2, 2);
 
 	float* q = getCarSize();
 	for (int j = 0; j < numButter + numOranges; j++) {
@@ -848,8 +853,9 @@ void renderScene(void) {
 				glUniformMatrix3fv(normal_uniformId, 1, GL_FALSE, mNormal3x3);
 
 			// Render mesh
-			if (objId == 0) glUniform1i(texMode_uniformId, 1);
-			else glUniform1i(texMode_uniformId, 2);
+			if (objId == 0) glUniform1i(texMode_uniformId, 0);
+			else if (objId == 11) glUniform1i(texMode_uniformId, 2);
+			else glUniform1i(texMode_uniformId, 3);
 
 			glBindVertexArray(myMeshes[objId].vao);
 			
@@ -899,6 +905,7 @@ void renderScene(void) {
 			glUniformMatrix3fv(normal_uniformId, 1, GL_FALSE, mNormal3x3);
 
 			// Render mesh
+			glUniform1i(texMode_uniformId, 3);
 			glBindVertexArray(myMeshes[objId].vao);
 
 			if (!shader.isProgramValid()) {
@@ -956,7 +963,7 @@ void renderScene(void) {
 				glUniformMatrix3fv(normal_uniformId, 1, GL_FALSE, mNormal3x3);
 
 				// Render mesh
-				glUniform1i(texMode_uniformId, 0);
+				glUniform1i(texMode_uniformId, 1);
 				glBindVertexArray(myMeshes[objId].vao);
 
 				if (!shader.isProgramValid()) {
@@ -1442,6 +1449,7 @@ GLuint setupShaders() {
 
 	tex_loc = glGetUniformLocation(shader.getProgramIndex(), "texmap");
 	tex_loc1 = glGetUniformLocation(shader.getProgramIndex(), "texmap1");
+	tex_loc2 = glGetUniformLocation(shader.getProgramIndex(), "texmap2");
 	
 	printf("InfoLog for Per Fragment Phong Lightning Shader\n%s\n\n", shader.getAllInfoLogs().c_str());
 
@@ -1509,8 +1517,9 @@ void init()
 	camY = r * sin(beta * 3.14f / 180.0f);
 
 	glGenTextures(2, TextureArray);
-	Texture2D_Loader(TextureArray, "grass.jpg", 0);
+	Texture2D_Loader(TextureArray, "lightwood.tga", 0);
 	Texture2D_Loader(TextureArray, "road.jpg", 1);
+	Texture2D_Loader(TextureArray, "finishline.jpg", 2);
 
 
 	numRoads = CalcRoads();
