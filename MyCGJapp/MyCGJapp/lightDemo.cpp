@@ -83,6 +83,11 @@ GLint lDir_uniformId;
 GLint slDir_uniformId[2];
 GLint slPos_uniformId[2];
 GLint slCutOffAngle_uniformId;
+
+GLint slPosTexture_uniformId;
+GLint slDirTexture_uniformId;
+GLint slCutOffAngleTexture_uniformId;
+
 GLint tex_loc, tex_loc1, tex_loc2;
 GLint texMode_uniformId;
 
@@ -430,15 +435,46 @@ public:
 	}
 };
 
+float lookAtX = 0;
+float lookAtY = 0;
+float lookAtZ = 0;
 
 class Game {
 	public:Car car;
 	public:Orange orange[numOranges];
 	public:Butter butter[numButter];
+	public:Spotlight textureSl;
+	public:bool isTextureSpOn = false;
 	public:float finishLineDimensions[3] = {roadWidth, 0.6, roadWidth};
 	public:float finishLinePos[3] = {tableX - finishLineDimensions[0], 0, tableZ - finishLineDimensions[2]};
 	public:bool isFinished = false;
 	public:bool win;
+
+		Game(){
+			textureSl.pos[0] = car.position[0];
+			textureSl.pos[1] = car.position[0];
+			textureSl.pos[2] = car.position[0];
+			textureSl.pos[3] = 0;
+
+			textureSl.dir[0] = 0;
+			textureSl.dir[1] = 0;
+			textureSl.dir[2] = 0;
+			textureSl.dir[3] = 0;
+
+			textureSl.ang = cos(DegToRad(12.5f));
+		}
+
+		//update texture spotlight key l
+		void updateTextureSl() {
+			textureSl.pos[0] = lookAtX;
+			textureSl.pos[1] = lookAtY;
+			textureSl.pos[2] = lookAtZ;
+
+			textureSl.dir[0] = camX;
+			textureSl.dir[1] = camY;
+			textureSl.dir[2] = camZ;
+		}
+
 		void checkFinish(float* q) {
 			if (CheckCollision(car.position[0], car.position[2], q[0], q[1], finishLinePos[0], finishLinePos[2], finishLineDimensions[0], finishLineDimensions[2])) {
 				printf("FIM DA CORRIDA\n");
@@ -516,11 +552,6 @@ class Game {
 };
 
 Game game;
-
-float lookAtX = game.car.position[0];
-float lookAtY = game.car.position[1];
-float lookAtZ = game.car.position[2];
-
 
 void timer(int value)
 {
@@ -671,11 +702,24 @@ void renderScene(void) {
 	// set the camera using a function similar to gluLookAt
 
 	lookAt(camX, camY, camZ, lookAtX, lookAtY, lookAtZ, 0,1,0);
-	
+
 	if (!game.isFinished) {
 	
 		// use our shader
 		glUseProgram(shader.getProgramIndex());
+		game.updateTextureSl();
+		// SPOTLIGHT TEXTURE
+
+		float res1[4];
+
+		multMatrixPoint(VIEW, game.textureSl.dir, res1);
+		//printf("spotlight 0 dir = { %.1f, %.1f, %.1f, %.1f}\n", res2[0], res2[1], res2[2], res2[3]);
+		glUniform4fv(slDirTexture_uniformId, 1, res1);
+
+		multMatrixPoint(VIEW, game.textureSl.pos, res1);
+		glUniform4fv(slPosTexture_uniformId, 1, res1);
+
+		glUniform1f(slCutOffAngleTexture_uniformId, game.textureSl.ang);
 
 		//send the light position in eye coordinates
 		//glUniform4fv(lPos_uniformId, 1, lightPos); //efeito capacete do mineiro, ou seja lighPos foi definido em eye coord 
@@ -720,14 +764,13 @@ void renderScene(void) {
 		float res5[4];
 
 
-	multMatrixPoint(VIEW, game.car.spotlights[0]->pos, res5);
-	glUniform4fv(slPos_uniformId[0], 1, res5);
+		multMatrixPoint(VIEW, game.car.spotlights[0]->pos, res5);
+		glUniform4fv(slPos_uniformId[0], 1, res5);
 
-		float res6[4];
+			float res6[4];
 
-	multMatrixPoint(VIEW, game.car.spotlights[1]->pos, res6);
-	glUniform4fv(slPos_uniformId[1], 1, res6);
-	
+		multMatrixPoint(VIEW, game.car.spotlights[1]->pos, res6);
+		glUniform4fv(slPos_uniformId[1], 1, res6);
 	
 
 		glUniform1f(slCutOffAngle_uniformId, game.car.spotlights[0]->ang);
@@ -1076,6 +1119,17 @@ void processKeys(unsigned char key, int xx, int yy)
 					game.car.spotlights[i]->pos[3] = 1.0f;
 				}
 				isSpotLightsOn = true;
+			}
+			break;
+		case 'l':
+			// SPOTLIGHTS --> ILUMINACAO COMO SE FOSSE AS LUZES FRONTEIRAS DO CARRO
+			if (game.isTextureSpOn) {	
+				game.textureSl.pos[3] = 0.0f;
+				game.isTextureSpOn = false;
+			}
+			else {
+				game.textureSl.pos[3]= 1.0f;
+				game.isTextureSpOn = true;
 			}
 			break;
 		case '1': 
@@ -1446,6 +1500,10 @@ GLuint setupShaders() {
 	slDir_uniformId[1] = glGetUniformLocation(shader.getProgramIndex(), "sl_dir[1]");
 
 	slCutOffAngle_uniformId = glGetUniformLocation(shader.getProgramIndex(), "sl_cut_off_ang");
+
+	slPosTexture_uniformId = glGetUniformLocation(shader.getProgramIndex(), "sl_pos_texture");
+	slDirTexture_uniformId = glGetUniformLocation(shader.getProgramIndex(), "sl_dir_texture");
+	slCutOffAngleTexture_uniformId = glGetUniformLocation(shader.getProgramIndex(), "sl_cut_off_ang_texture");
 
 	tex_loc = glGetUniformLocation(shader.getProgramIndex(), "texmap");
 	tex_loc1 = glGetUniformLocation(shader.getProgramIndex(), "texmap1");

@@ -21,13 +21,18 @@ uniform int texMode;
 uniform vec4 sl_dir[2];
 uniform float sl_cut_off_ang;
 
+
+uniform vec4 sl_dir_texture;
+uniform float sl_cut_off_ang_texture;
+
 in Data {
 	vec3 normal;
 	vec3 eye;
 	vec3 DirectionalLight;
 	vec3 PointLights[6];
 	vec3 SpotLights[2];
-	flat int lights[2];
+	vec3 TextureSpotlight;
+	flat int lights[3];
 	vec2 tex_coord;
 } DataIn;
 
@@ -86,8 +91,12 @@ void main() {
 		intensity_spec += calcSpotLight(DataIn.SpotLights[1], n, e, sl_dir[1], sl_cut_off_ang);
 	}
 
+	// Spotlight texture
+	if(DataIn.lights[2] == 1){
+		intensity_spec += calcSpotLight(DataIn.TextureSpotlight, n, e, sl_dir_texture, sl_cut_off_ang_texture);
+	}
+
 	// Textures
-	vec3 l = normalize(DataIn.DirectionalLight);
 	if(texMode == 0) // modulate diffuse color with texel color
 	{
 		if (intensity_spec[0] > 0){

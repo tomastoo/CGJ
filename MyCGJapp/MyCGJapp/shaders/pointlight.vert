@@ -14,6 +14,10 @@ uniform vec4 l_dir;
 
 uniform vec4 sl_pos[2];
 
+// TEXTURE SPOTLIGHT
+
+uniform vec4 sl_pos_texture;
+
 
 in vec4 position;
 in vec4 normal;    //por causa do gerador de geometria
@@ -25,7 +29,8 @@ out Data {
 	vec3 DirectionalLight;
 	vec3 PointLights[6];
 	vec3 SpotLights[2];
-	flat int lights[2];
+	vec3 TextureSpotlight;
+	flat int lights[3];
 	vec2 tex_coord;
 } DataOut;
 
@@ -57,6 +62,15 @@ void main () {
 	}
 	else{
 		DataOut.lights[1] = 0;
+	}
+
+	if(sl_pos_texture.w == 1.0f){
+
+		DataOut.TextureSpotlight = vec3(sl_pos_texture - pos);
+		DataOut.lights[2] = 1;
+	}
+	else{
+		DataOut.lights[2] = 0;
 	}
 
 	DataOut.eye = vec3(-pos);
