@@ -505,22 +505,22 @@ class Game {
 	  void colisionButterCheerio(float* q, float* p) {
 		  float butterCollisionVelocity = 0.8f;
 		  for (int i = 0; i < numButter; i++) {
-			  if (CheckCollision(p[0], p[1], q[0], q[1], butter[j-1].position[0], butter[j-1].position[2], 1, 1)) {
-			  	  printf("COLISAO_BUTTER CPX: %f, CPY: %f, p0: %f, p1: %f, q0: %f, q1:%f\n", game.car.position[0], game.car.position[2], p[0],p[1],q[0],q[1]);
+			  if (CheckCollision(p[0], p[1], q[0], q[1], butter[i].position[0], butter[i].position[2], 1, 1)) {
+			  	  printf("COLISAO_BUTTER CPX: %f, CPY: %f, p0: %f, p1: %f, q0: %f, q1:%f\n", car.position[0], car.position[2], p[0],p[1],q[0],q[1]);
 				  car.velocity = 0;
 				  butter[i].position[0] += car.direction[0] * butterCollisionVelocity;
 				  butter[i].position[1] += car.direction[1] * butterCollisionVelocity;
 				  butter[i].position[2] += car.direction[2] * butterCollisionVelocity;
 			  }
-		  }
-		  //for (int i = 0; i < numCheerios; i++) {
-			 // if (CheckCollision(car.position[0], car.position[2], q[0], q[1], cheerio[i].position[0], cheerio[i].position[2], 1, 1)) {
-				//  car.velocity = 0;
-				//  cheerio[i].position[0] += car.direction[0] * butterCollisionVelocity;
-				//  cheerio[i].position[1] += car.direction[1] * butterCollisionVelocity;
-				//  cheerio[i].position[2] += car.direction[2] * butterCollisionVelocity;
-			 // }
-		  //}
+		  }/*
+		  for (int i = 0; i < numCheerios; i++) {
+			  if (CheckCollision(car.position[0], car.position[2], q[0], q[1], cheerio[i].position[0], cheerio[i].position[2], 1, 1)) {
+				  car.velocity = 0;
+				  cheerio[i].position[0] += car.direction[0] * butterCollisionVelocity;
+				  cheerio[i].position[1] += car.direction[1] * butterCollisionVelocity;
+				  cheerio[i].position[2] += car.direction[2] * butterCollisionVelocity;
+			  }
+		  }*/
 	  }
 };
 
@@ -799,7 +799,7 @@ void renderScene(void) {
 		}
 	}
 
-		game.checkFinish(q);
+		game.checkFinish(q, p);
 		game.colisionButterCheerio(q, p);
 		int objId=0; //id of the object mesh - to be used as index of mesh: Mymeshes[objID] means the current mesh
 		for (int i = 0 ; i < numObjects; ++i) {
