@@ -224,8 +224,8 @@ class Car {
 		};
 
 		void updateSpotlights() {
-			float marginX[2] = { carBodyY + 20, carBodyY + 20 };
-			float marginY[2] = { 5.f, 5.f };
+			float marginX[2] = { carBodyY , carBodyY };
+			float marginY[2] = { 1.f, 1.f };
 			float marginZ[2] = { 0.f, carBodyX };
 
 			float forward;
@@ -242,6 +242,38 @@ class Car {
 					spotlights[i]->dir[j] = forward*direction[j];
 				}
 			}
+			
+			//translate(MODEL, position[0] + (carBodyX - jointCarGap) * cos(DegToRad(car.directionAngle)), 
+			//	position[1] + torusY, 
+			//	position[2] - (carBodyX - jointCarGap) * sin(DegToRad(car.directionAngle)));
+
+			//// X
+			//spotlights[0]->pos[0] = position[0] + marginX[0] * cos(DegToRad(directionAngle));
+			//// Y
+			//spotlights[0]->pos[1] = position[1] + marginY[0];
+			//// Z
+			//spotlights[0]->pos[2] = position[2] + marginZ[0] * sin(DegToRad(directionAngle));
+
+			/*translate(MODEL, position[0] + (carBodyZ)*sin(DegToRad(car.directionAngle)) + (carBodyX - jointCarGap) * cos(DegToRad(car.directionAngle))
+				, position[1] + torusY, 
+				position[2] + carBodyZ * cos(DegToRad(car.directionAngle)) - (carBodyX - jointCarGap) * sin(DegToRad(car.directionAngle)));*/
+
+			// 
+			// X
+			spotlights[1]->pos[0] = position[0] + marginZ[1] * sin(DegToRad(directionAngle)) +  marginX[1] * cos(DegToRad(directionAngle));
+			// Y
+			spotlights[1]->pos[1] = position[1] + marginY[1];
+			// Z
+			spotlights[1]->pos[2] = position[2] - marginX[1] * sin(DegToRad(directionAngle)) + marginZ[1] * cos(DegToRad(directionAngle));
+
+			// LEFT SPOTLIGHT 
+			// X
+			spotlights[0]->pos[0] = position[0] + marginX[0] * cos(DegToRad(directionAngle));
+			// Y
+			spotlights[0]->pos[1] = position[1] + marginY[0];
+			// Z
+			spotlights[0]->pos[2] = position[2] - marginX[0] * sin(DegToRad(directionAngle));
+
 		}
 
 		//void rotateSpotlights(float angle) {
@@ -261,15 +293,15 @@ class Car {
 			position[1] += direction[1] * velocity;
 			position[2] += direction[2] * velocity;
 
-			for (int i = 0; i < 2; i++) {
-				// SPOTLIGHTS POSITION 
-				// X
-				spotlights[i]->pos[0] += direction[0] * velocity;
-				// Y
-				spotlights[i]->pos[1] += direction[1] * velocity;
-				// Z
-				spotlights[i]->pos[2] += direction[2] * velocity;
-			}
+			//for (int i = 0; i < 2; i++) {
+			//	// SPOTLIGHTS POSITION 
+			//	// X
+			//	spotlights[i]->pos[0] += direction[0] * velocity;
+			//	// Y
+			//	spotlights[i]->pos[1] += direction[1] * velocity;
+			//	// Z
+			//	spotlights[i]->pos[2] += direction[2] * velocity;
+			//}
 			updateSpotlights();
 		};
 
@@ -532,14 +564,15 @@ void renderScene(void) {
 
 
 	multMatrixPoint(VIEW, car.spotlights[0]->pos, res5);
-	//printf("spotlight 0 pos = { %.1f, %.1f, %.1f, %.1f}\n", res2[0], res2[1], res2[2], res2[3]);
+	printf("spotlight 0 pos = { %.1f, %.1f, %.1f, %.1f}\n", car.spotlights[0]->pos[0], car.spotlights[0]->pos[1], car.spotlights[0]->pos[2], car.spotlights[0]->pos[3]);
+	printf("spotlight 0 pos res = { %.1f, %.1f, %.1f, %.1f}\n", res2[0], res2[1], res2[2], res2[3]);
 	glUniform4fv(slPos_uniformId[0], 1, res5);
 
 	float res6[4];
 
 	multMatrixPoint(VIEW, car.spotlights[1]->pos, res6);
-	//printf("spotlight 1 pos = { %.1f, %.1f, %.1f, %.1f}\n", car.spotlights[1]->pos[0], car.spotlights[1]->pos[1], car.spotlights[1]->pos[2], car.spotlights[1]->pos[3]);
-	//printf("spotlight 1 pos res = { %.1f, %.1f, %.1f, %.1f}\n", res2[0], res2[1], res2[2], res2[3]);
+	printf("spotlight 1 pos = { %.1f, %.1f, %.1f, %.1f}\n", car.spotlights[1]->pos[0], car.spotlights[1]->pos[1], car.spotlights[1]->pos[2], car.spotlights[1]->pos[3]);
+	printf("spotlight 1 pos res = { %.1f, %.1f, %.1f, %.1f}\n", res2[0], res2[1], res2[2], res2[3]);
 	glUniform4fv(slPos_uniformId[1], 1, res6);
 	
 	
