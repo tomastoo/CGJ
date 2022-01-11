@@ -355,9 +355,9 @@ class Car {
 
 class Orange{
 public:
-	const float velocityIncrease = 0.000f;
-	const float veloctityIntervalIncrease = 0.000;
-	float maxVelocity = 0.01f;
+	const float velocityIncrease = 0.005f;
+	const float veloctityIntervalIncrease = 0.001f;
+	float maxVelocity = 0.03f;
 	float minVelocity = 0.01f;
 	float position[3] = { 0.0f, 1.5f, 0.0f };
 	float velocity;
@@ -498,7 +498,7 @@ public:
 
 		position[0] = b * 5 + static_cast <float> (rand()) / (static_cast <float> (RAND_MAX / 5));
 		position[2] = a * 5 + static_cast <float> (rand()) / (static_cast <float> (RAND_MAX / 5));
-		printf("butter, p0: %f, p1: %f", position[0], position[1]);
+		//printf("butter, p0: %f, p1: %f", position[0], position[1]);
 	}
 
 	bool isOnTable() {
@@ -585,7 +585,7 @@ class Game {
 		  float butterCollisionVelocity = 0.8f;
 		  for (int i = 0; i < numButter; i++) {
 			  if (CheckCollision(p[0], p[1], q[0], q[1], butter[i].position[0], butter[i].position[2], 1, 1)) {
-			  	  printf("COLISAO_BUTTER CPX: %f, CPY: %f, p0: %f, p1: %f, q0: %f, q1:%f\n", car.position[0], car.position[2], p[0],p[1],q[0],q[1]);
+			  	  //printf("COLISAO_BUTTER CPX: %f, CPY: %f, p0: %f, p1: %f, q0: %f, q1:%f\n", car.position[0], car.position[2], p[0],p[1],q[0],q[1]);
 				  car.velocity = 0;
 				  butter[i].position[0] += car.direction[0] * butterCollisionVelocity;
 				  butter[i].position[1] += car.direction[1] * butterCollisionVelocity;
