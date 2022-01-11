@@ -130,7 +130,7 @@ float lightPos[6][4] = {{tableX / plGrid[0], tableY + pointLightsHight, tableZ /
 
 float* directionalLight = nolightDir;
 
-float roadWidth = 10;
+float roadWidth = 5;
 //float roadTurn = sqrt((roadWidth * roadWidth) + (roadWidth * roadWidth));
 float roadTurn = 5;
 
@@ -138,35 +138,72 @@ int numObjects = 0;
 const int numButter = 5;
 const int numOranges = 5;
 
-int mapRoad[10][10] = { {1, 1, 1, 0, 0, 0, 0, 0, 0, 0},//1
-						{0, 0, 1, 0, 0, 1, 1, 1, 1, 1},//2
-						{0, 0, 1, 0, 0, 1, 0, 0, 0, 1},//3
-						{0, 0, 1, 1, 1, 1, 0, 0, 0, 1},//4
-						{0, 0, 0, 0, 0, 0, 0, 1, 1, 1},//5
-						{1, 1, 1, 1, 1, 1, 1, 1, 0, 0},//6
-						{1, 0, 0, 0, 0, 0, 0, 0, 0, 0},//7
-						{1, 0, 0, 1, 1, 1, 1, 0, 0, 0},//8
-						{1, 0, 0, 1, 0, 0, 1, 0, 0, 0},//9
-						{1, 1, 1, 1, 0, 0, 1, 1, 1, 0} };//10
+
+int mapRoad[21][21] = { {1, 1, 1, 1, 1, 1, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, },//1
+						{1, 1, 1, 1, 1, 1, 2, 0, 0, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, },
+						{2, 2, 2, 2, 1, 1, 2, 0, 0, 2, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, },//2
+						{0, 0, 0, 2, 1, 1, 2, 0, 0, 2, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, },
+						{0, 0, 0, 2, 1, 1, 2, 0, 0, 2, 1, 1, 2, 2, 2, 2, 2, 2, 1, 1, },//3
+						{0, 0, 0, 2, 1, 1, 2, 2, 2, 2, 1, 1, 2, 0, 0, 0, 0, 2, 1, 1, },//3						
+						{0, 0, 0, 2, 1, 1, 1, 1, 1, 1, 1, 1, 2, 0, 0, 0, 0, 2, 1, 1, },//4
+						{0, 0, 0, 2, 1, 1, 1, 1, 1, 1, 1, 1, 2, 2, 2, 2, 2, 2, 1, 1, },//4						
+						{0, 0, 0, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 1, 1, 1, 1, 1, 1, },//5
+						{2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 1, 1, 1, 1, 1, 1, },//5						
+						{2, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 2, 2, 2, },//6
+						{2, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 0, 0, 0, },//6						
+						{2, 1, 1, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 0, 0, 0, },//7
+						{2, 1, 1, 2, 0, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 0, 0, 0, 0, 0, },//7						
+						{2, 1, 1, 2, 0, 2, 1, 1, 1, 1, 1, 1, 1, 1, 2, 0, 0, 0, 0, 0, },//8
+						{2, 1, 1, 2, 0, 2, 1, 1, 1, 1, 1, 1, 1, 1, 2, 0, 0, 0, 0, 0, },//8
+						{2, 1, 1, 2, 0, 2, 1, 1, 2, 2, 2, 2, 1, 1, 2, 0, 0, 0, 0, 0, },//9
+						{2, 1, 1, 2, 2, 2, 1, 1, 2, 0, 0, 2, 1, 1, 2, 2, 2, 2, 2, 2, },//9
+						{2, 1, 1, 1, 1, 1, 1, 1, 2, 0, 0, 2, 1, 1, 1, 1, 1, 1, 1, 1, },//10
+						{2, 1, 1, 1, 1, 1, 1, 1, 2, 0, 0, 2, 1, 1, 1, 1, 1, 1, 1, 1, } };
+
+//int mapRoad[10][10] = { {1, 1, 1, 0, 0, 0, 0, 0, 0, 0},//1
+//						{0, 0, 1, 0, 0, 1, 1, 1, 1, 1},//2
+//						{0, 0, 1, 0, 0, 1, 0, 0, 0, 1},//3
+//						{0, 0, 1, 1, 1, 1, 0, 0, 0, 1},//4
+//						{0, 0, 0, 0, 0, 0, 0, 1, 1, 1},//5
+//						{1, 1, 1, 1, 1, 1, 1, 1, 0, 0},//6
+//						{1, 0, 0, 0, 0, 0, 0, 0, 0, 0},//7
+//						{1, 0, 0, 1, 1, 1, 1, 0, 0, 0},//8
+//						{1, 0, 0, 1, 0, 0, 1, 0, 0, 0},//9
+//						{1, 1, 1, 1, 0, 0, 1, 1, 1, 0} };//10
 
 
 int mapRows = sizeof(mapRoad) / sizeof(mapRoad[0]);
 int mapCols = sizeof(mapRoad[0]) / sizeof(mapRoad[0][0]);
 int numRoads = 0;
-//CalcRoads();
 
 int CalcRoads() {
 	int count = 0;
 	for (int i = 0; i < mapRows; i++) {
 		for (int j = 0; j < mapCols; j++) {
-			if (mapRoad[i][j] != 0) {
+			if (mapRoad[i][j] == 1) {
 				count++;
 			}
 		}
 	};
-	printf("%d", count);
+	printf("%d\n", count);
 	return count;
 }
+
+int CalcCheerios() {
+	int count2 = 0;
+	for (int i = 0; i < mapRows; i++) {
+		for (int j = 0; j < mapCols; j++) {
+			if (mapRoad[i][j] == 2) {
+				count2++;
+			}
+		}
+	};
+	printf("number of cheerios: %d\n", count2);
+	return count2;
+}
+
+int numCheerios = CalcCheerios();
+const int numCheerios2 = numCheerios;
 
 /*
 class RoadSegment {
@@ -318,9 +355,9 @@ class Car {
 
 class Orange{
 public:
-	const float velocityIncrease = 0.005f;
-	const float veloctityIntervalIncrease = 0.001;
-	float maxVelocity = 0.03f;
+	const float velocityIncrease = 0.000f;
+	const float veloctityIntervalIncrease = 0.000;
+	float maxVelocity = 0.01f;
 	float minVelocity = 0.01f;
 	float position[3] = { 0.0f, 1.5f, 0.0f };
 	float velocity;
@@ -412,15 +449,56 @@ public:
 	
 	//given a certain table size 
 	void randomPosition() {
-		int a = rand() % 10;
-		int b = rand() % 10;
+		int a = rand() % mapRows;
+		int b = rand() % mapCols;
 		while (mapRoad[a][b] != 1) {
-			a = rand() % 10;
-			b = rand() % 10;
+			a = rand() % mapRows;
+			b = rand() % mapCols;
 		}
 		
-		position[0] = b*10 + static_cast <float> (rand()) / (static_cast <float> (RAND_MAX / 10));
-		position[2] = a*10 + static_cast <float> (rand()) / (static_cast <float> (RAND_MAX / 10));
+		position[0] = b*5 + static_cast <float> (rand()) / (static_cast <float> (RAND_MAX / 5));
+		position[2] = a*5 + static_cast <float> (rand()) / (static_cast <float> (RAND_MAX / 5));
+		printf("butter, p0: %f, p1: %f", position[0], position[1]);
+	}
+
+	bool isOnTable() {
+		if (position[0] > tableX || position[0] < 0)
+			return false;
+
+		if (position[2] > tableZ || position[0] < 0)
+			return false;
+
+		return true;
+	}
+
+	void reset() {
+		randomPosition();
+	}
+};
+
+class Cheerio {
+public:
+	float position[3];
+	float rotationAngle = 0;
+
+	Cheerio() {
+		// set position random
+		//randomPosition();
+		//reset();
+	};
+
+	//given a certain table size 
+	void randomPosition() {
+		int a = rand() % mapRows;
+		int b = rand() % mapCols;
+		while (mapRoad[a][b] != 1) {
+			a = rand() % mapRows;
+			b = rand() % mapCols;
+		}
+
+		position[0] = b * 5 + static_cast <float> (rand()) / (static_cast <float> (RAND_MAX / 5));
+		position[2] = a * 5 + static_cast <float> (rand()) / (static_cast <float> (RAND_MAX / 5));
+		printf("butter, p0: %f, p1: %f", position[0], position[1]);
 	}
 
 	bool isOnTable() {
@@ -443,6 +521,7 @@ class Game {
 	public:Car car;
 	public:Orange orange[numOranges];
 	public:Butter butter[numButter];
+	public:Cheerio cheerio[141];
 	public:float finishLineDimensions[3] = {roadWidth, 0.6, roadWidth};
 	public:float finishLinePos[3] = {tableX - finishLineDimensions[0], 0, tableZ - finishLineDimensions[2]};
 	public:bool isFinished = false;
@@ -512,7 +591,7 @@ class Game {
 				  butter[i].position[1] += car.direction[1] * butterCollisionVelocity;
 				  butter[i].position[2] += car.direction[2] * butterCollisionVelocity;
 			  }
-		  }/*
+		  }
 		  for (int i = 0; i < numCheerios; i++) {
 			  if (CheckCollision(car.position[0], car.position[2], q[0], q[1], cheerio[i].position[0], cheerio[i].position[2], 1, 1)) {
 				  car.velocity = 0;
@@ -520,7 +599,7 @@ class Game {
 				  cheerio[i].position[1] += car.direction[1] * butterCollisionVelocity;
 				  cheerio[i].position[2] += car.direction[2] * butterCollisionVelocity;
 			  }
-		  }*/
+		  }
 	  }
 };
 
@@ -964,7 +1043,7 @@ void renderScene(void) {
 
 		for (int j = 0; j < mapRows; j++) {
 			for (int k = 0; k < mapCols; k++) {
-				if (mapRoad[j][k] == 0) {
+				if (mapRoad[j][k] != 1) {
 					continue;
 				}
 				//printf("numR:  %d", numRoads);
@@ -993,10 +1072,67 @@ void renderScene(void) {
 					translate(MODEL, roadWidth * k, 0.1f, roadWidth * j);
 					scale(MODEL, roadWidth, 0.5, roadWidth);
 				}
-				else if (mapRoad[j][k] == 2) {
+				else if (mapRoad[j][k] == 27) {
 					translate(MODEL, roadTurn * k, 0.1f, roadTurn * j);
 					scale(MODEL, roadTurn, 0.5, roadTurn);
 				}
+				// send matrices to OGL
+				computeDerivedMatrix(PROJ_VIEW_MODEL);
+				glUniformMatrix4fv(vm_uniformId, 1, GL_FALSE, mCompMatrix[VIEW_MODEL]);
+				glUniformMatrix4fv(pvm_uniformId, 1, GL_FALSE, mCompMatrix[PROJ_VIEW_MODEL]);
+				computeNormalMatrix3x3();
+				glUniformMatrix3fv(normal_uniformId, 1, GL_FALSE, mNormal3x3);
+
+				// Render mesh
+				glUniform1i(texMode_uniformId, 1);
+				glBindVertexArray(myMeshes[objId].vao);
+
+				if (!shader.isProgramValid()) {
+					printf("Program Not Valid!\n");
+					exit(1);
+				}
+				glDrawElements(myMeshes[objId].type, myMeshes[objId].numIndexes, GL_UNSIGNED_INT, 0);
+				glBindVertexArray(0);
+
+				popMatrix(MODEL);
+				objId++;
+			}
+		}
+		int iteCheerio = 0;
+		for (int j = 0; j < mapRows; j++) {
+			for (int k = 0; k < mapCols; k++) {
+				if (mapRoad[j][k] !=2) {
+					continue;
+				}
+				
+				//printf("numR:  %d", numRoads);
+				// send the material
+				loc = glGetUniformLocation(shader.getProgramIndex(), "mat.ambient");
+				glUniform4fv(loc, 1, myMeshes[objId].mat.ambient);
+				loc = glGetUniformLocation(shader.getProgramIndex(), "mat.diffuse");
+				glUniform4fv(loc, 1, myMeshes[objId].mat.diffuse);
+				loc = glGetUniformLocation(shader.getProgramIndex(), "mat.specular");
+				glUniform4fv(loc, 1, myMeshes[objId].mat.specular);
+				loc = glGetUniformLocation(shader.getProgramIndex(), "mat.shininess");
+				glUniform1f(loc, myMeshes[objId].mat.shininess);
+				pushMatrix(MODEL);
+
+				// TODO THIS IS SHIT I WANT THIS WHEN DEFINING THE VO in the init() func
+				// Values correspond to 0,0 on the table coords = wc
+				float torusY = 1.0f; //z in world coords
+				float carBodyX = 1.5f;
+				float carBodyY = 3.0f;
+				float jointCarGap = -0.5f;
+
+				game.car.move();
+				float* position = game.car.position;
+
+				if (mapRoad[j][k] == 2) {
+					translate(MODEL, game.cheerio[iteCheerio].position[0], game.cheerio[iteCheerio].position[1], game.cheerio[iteCheerio].position[2]);
+					scale(MODEL, roadWidth - 2, 1.5, roadWidth - 2);
+					iteCheerio++;
+				}
+				
 				// send matrices to OGL
 				computeDerivedMatrix(PROJ_VIEW_MODEL);
 				glUniformMatrix4fv(vm_uniformId, 1, GL_FALSE, mCompMatrix[VIEW_MODEL]);
@@ -1565,6 +1701,7 @@ void init()
 
 
 	numRoads = CalcRoads();
+	//numCheerios = CalcCheerios();
 
 
 	float amb[] = { 0.2f, 0.15f, 0.1f, 1.0f };
@@ -1700,18 +1837,30 @@ void init()
 	};
 	
 	// Cheerios
-	//for (int i = 0; i < numRoads; i++) {
+	for (int i = 0; i < numCheerios; i++) {
 
-	//	amesh = createTorus(0.1f, 0.5f, 20, 20);
-	//	memcpy(amesh.mat.ambient, amb3, 4 * sizeof(float));
-	//	memcpy(amesh.mat.diffuse, diff2, 4 * sizeof(float));
-	//	memcpy(amesh.mat.specular, spec2, 4 * sizeof(float));
-	//	memcpy(amesh.mat.emissive, emissive, 4 * sizeof(float));
-	//	amesh.mat.shininess = shininess;
-	//	amesh.mat.texCount = texcount;
-	//	myMeshes.push_back(amesh);
-	//	numObjects++;
-	//};
+		amesh = createTorus(0.1f, 0.5f, 20, 20);
+		memcpy(amesh.mat.ambient, amb3, 4 * sizeof(float));
+		memcpy(amesh.mat.diffuse, diff2, 4 * sizeof(float));
+		memcpy(amesh.mat.specular, spec2, 4 * sizeof(float));
+		memcpy(amesh.mat.emissive, emissive, 4 * sizeof(float));
+		amesh.mat.shininess = shininess;
+		amesh.mat.texCount = texcount;
+		myMeshes.push_back(amesh);
+		//numObjects++;
+	};
+	int iteCheerio = 0;
+	for (int j = 0; j < mapRows; j++) {
+		for (int k = 0; k < mapCols; k++) {
+			if (mapRoad[j][k] == 2) {
+				game.cheerio[iteCheerio].position[0] = roadWidth * k + roadWidth / 2;
+				game.cheerio[iteCheerio].position[1] = 1.0f;
+				game.cheerio[iteCheerio].position[2] = roadWidth * j + roadWidth / 2;
+				iteCheerio++;
+			}
+			
+		}
+	}
 	
 	// some GL settings
 	//glEnable(GL_DEPTH_TEST);
