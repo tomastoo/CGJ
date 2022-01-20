@@ -101,26 +101,26 @@ void main() {
 	{
 		if (intensity_spec[0] > 0){
 		texel = texture(texmap, DataIn.tex_coord);  // texel from lightwood.tga
-		colorOut = max(intensity_spec[0]*texel + intensity_spec[1], 0.07*texel);
+		colorOut = max(intensity_spec[0]*texel + intensity_spec[1], 0.07*texel) + vec4(0.1, 0.1, 0.1, 0);
 		}
 	}
 	else if (texMode == 1) // modulate diffuse color with texel1 color
 	{
 		if (intensity_spec[0] > 0){
 		texel = texture(texmap1, DataIn.tex_coord);  // texel from road.jpg
-		colorOut = max(intensity_spec[0]*texel + intensity_spec[1], 0.07*texel);
+		colorOut = max(intensity_spec[0]*texel + intensity_spec[1], 0.07*texel)+ vec4(0.1, 0.1, 0.1, 0);
 		}
 	}
 	else if (texMode == 2) // modulate diffuse color with texel1 color
 	{
 		if (intensity_spec[0] > 0){
 		texel = texture(texmap2, DataIn.tex_coord);  // texel from finishline.jpg
-		colorOut = max(intensity_spec[0]*texel + intensity_spec[1], 0.07*texel);
+		colorOut = max(intensity_spec[0]*texel + intensity_spec[1], 0.07*texel)+ vec4(0.1, 0.1, 0.1, 0);
 		}
 	}
 	else{
 		if (intensity_spec[0] > 0){
-			colorOut = max(intensity_spec[0]*mat.diffuse + intensity_spec[1], mat.ambient);
+			colorOut = max(intensity_spec[0]*mat.diffuse + intensity_spec[1], mat.ambient) + vec4(0.1, 0.1, 0.1, 0);
 			}
 		}
 	}

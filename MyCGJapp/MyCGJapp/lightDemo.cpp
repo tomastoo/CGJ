@@ -135,7 +135,7 @@ float lightPos[6][4] = {{tableX / plGrid[0], tableY + pointLightsHight, tableZ /
 
 float* directionalLight = nolightDir;
 
-float roadWidth = 10;
+float roadWidth = 5;
 //float roadTurn = sqrt((roadWidth * roadWidth) + (roadWidth * roadWidth));
 float roadTurn = 5;
 
@@ -143,34 +143,72 @@ int numObjects = 0;
 const int numButter = 5;
 const int numOranges = 5;
 
-int mapRoad[10][10] = { {1, 1, 1, 0, 0, 0, 0, 0, 0, 0},//1
-						{0, 0, 1, 0, 0, 1, 1, 1, 1, 1},//2
-						{0, 0, 1, 0, 0, 1, 0, 0, 0, 1},//3
-						{0, 0, 1, 1, 1, 1, 0, 0, 0, 1},//4
-						{0, 0, 0, 0, 0, 0, 0, 1, 1, 1},//5
-						{1, 1, 1, 1, 1, 1, 1, 1, 0, 0},//6
-						{1, 0, 0, 0, 0, 0, 0, 0, 0, 0},//7
-						{1, 0, 0, 1, 1, 1, 1, 0, 0, 0},//8
-						{1, 0, 0, 1, 0, 0, 1, 0, 0, 0},//9
-						{1, 1, 1, 1, 0, 0, 1, 1, 1, 0} };//10
+
+int mapRoad[21][21] = { {1, 1, 1, 1, 1, 1, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, },//1
+						{1, 1, 1, 1, 1, 1, 2, 0, 0, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, },
+						{2, 2, 2, 2, 1, 1, 2, 0, 0, 2, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, },//2
+						{0, 0, 0, 2, 1, 1, 2, 0, 0, 2, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, },
+						{0, 0, 0, 2, 1, 1, 2, 0, 0, 2, 1, 1, 2, 2, 2, 2, 2, 2, 1, 1, },//3
+						{0, 0, 0, 2, 1, 1, 2, 2, 2, 2, 1, 1, 2, 0, 0, 0, 0, 2, 1, 1, },//3						
+						{0, 0, 0, 2, 1, 1, 1, 1, 1, 1, 1, 1, 2, 0, 0, 0, 0, 2, 1, 1, },//4
+						{0, 0, 0, 2, 1, 1, 1, 1, 1, 1, 1, 1, 2, 2, 2, 2, 2, 2, 1, 1, },//4						
+						{0, 0, 0, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 1, 1, 1, 1, 1, 1, },//5
+						{2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 1, 1, 1, 1, 1, 1, },//5						
+						{2, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 2, 2, 2, },//6
+						{2, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 0, 0, 0, },//6						
+						{2, 1, 1, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 0, 0, 0, },//7
+						{2, 1, 1, 2, 0, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 0, 0, 0, 0, 0, },//7						
+						{2, 1, 1, 2, 0, 2, 1, 1, 1, 1, 1, 1, 1, 1, 2, 0, 0, 0, 0, 0, },//8
+						{2, 1, 1, 2, 0, 2, 1, 1, 1, 1, 1, 1, 1, 1, 2, 0, 0, 0, 0, 0, },//8
+						{2, 1, 1, 2, 0, 2, 1, 1, 2, 2, 2, 2, 1, 1, 2, 0, 0, 0, 0, 0, },//9
+						{2, 1, 1, 2, 2, 2, 1, 1, 2, 0, 0, 2, 1, 1, 2, 2, 2, 2, 2, 2, },//9
+						{2, 1, 1, 1, 1, 1, 1, 1, 2, 0, 0, 2, 1, 1, 1, 1, 1, 1, 1, 1, },//10
+						{2, 1, 1, 1, 1, 1, 1, 1, 2, 0, 0, 2, 1, 1, 1, 1, 1, 1, 1, 1, } };
+
+//int mapRoad[10][10] = { {1, 1, 1, 0, 0, 0, 0, 0, 0, 0},//1
+//						{0, 0, 1, 0, 0, 1, 1, 1, 1, 1},//2
+//						{0, 0, 1, 0, 0, 1, 0, 0, 0, 1},//3
+//						{0, 0, 1, 1, 1, 1, 0, 0, 0, 1},//4
+//						{0, 0, 0, 0, 0, 0, 0, 1, 1, 1},//5
+//						{1, 1, 1, 1, 1, 1, 1, 1, 0, 0},//6
+//						{1, 0, 0, 0, 0, 0, 0, 0, 0, 0},//7
+//						{1, 0, 0, 1, 1, 1, 1, 0, 0, 0},//8
+//						{1, 0, 0, 1, 0, 0, 1, 0, 0, 0},//9
+//						{1, 1, 1, 1, 0, 0, 1, 1, 1, 0} };//10
+
 
 int mapRows = sizeof(mapRoad) / sizeof(mapRoad[0]);
 int mapCols = sizeof(mapRoad[0]) / sizeof(mapRoad[0][0]);
 int numRoads = 0;
-//CalcRoads();
 
 int CalcRoads() {
 	int count = 0;
 	for (int i = 0; i < mapRows; i++) {
 		for (int j = 0; j < mapCols; j++) {
-			if (mapRoad[i][j] != 0) {
+			if (mapRoad[i][j] == 1) {
 				count++;
 			}
 		}
 	};
-	printf("%d", count);
+	printf("%d\n", count);
 	return count;
 }
+
+int CalcCheerios() {
+	int count2 = 0;
+	for (int i = 0; i < mapRows; i++) {
+		for (int j = 0; j < mapCols; j++) {
+			if (mapRoad[i][j] == 2) {
+				count2++;
+			}
+		}
+	};
+	printf("number of cheerios: %d\n", count2);
+	return count2;
+}
+
+int numCheerios = CalcCheerios();
+const int numCheerios2 = numCheerios;
 
 /*
 class RoadSegment {
@@ -273,6 +311,15 @@ class Car {
 			spotlights[0]->pos[2] = position[2] - marginX[0] * sin(DegToRad(directionAngle));
 
 		}
+		bool isOnTable() {
+			if (position[0] > tableX || position[0] < 0)
+				return false;
+
+			if (position[2] > tableZ || position[2] < 0)
+				return false;
+
+			return true;
+		}
 		void reset() {
 			direction[0] = 1;
 			for (int i = 0; i < 3; i++) {
@@ -322,8 +369,8 @@ class Car {
 
 class Orange{
 public:
-	const float velocityIncrease = 0.005f;
-	const float veloctityIntervalIncrease = 0.001;
+	const float velocityIncrease = 0.0005f;
+	const float veloctityIntervalIncrease = 0.0001f;
 	float maxVelocity = 0.03f;
 	float minVelocity = 0.01f;
 	float position[3] = { 0.0f, 1.5f, 0.0f };
@@ -356,7 +403,7 @@ public:
 		if (position[0] > tableX || position[0] < 0) 
 			return false;
 		
-		if (position[2] > tableZ || position[0] < 0)
+		if (position[2] > tableZ || position[2] < 0)
 			return false;
 
 		return true;
@@ -411,13 +458,21 @@ public:
 	Butter() {
 		// set position random
 		randomPosition();
-		reset();
+		//reset();
 	};
 	
 	//given a certain table size 
 	void randomPosition() {
-		position[0] = static_cast <float> (rand()) / (static_cast <float> (RAND_MAX / tableX));
-		position[2] = static_cast <float> (rand()) / (static_cast <float> (RAND_MAX / tableZ));
+		int a = rand() % mapRows;
+		int b = rand() % mapCols;
+		while (mapRoad[a][b] != 1) {
+			a = rand() % mapRows;
+			b = rand() % mapCols;
+		}
+		
+		position[0] = b*5 + static_cast <float> (rand()) / (static_cast <float> (RAND_MAX / 5));
+		position[2] = a*5 + static_cast <float> (rand()) / (static_cast <float> (RAND_MAX / 5));
+		printf("butter, p0: %f, p1: %f", position[0], position[1]);
 	}
 
 	bool isOnTable() {
@@ -435,6 +490,50 @@ public:
 	}
 };
 
+
+class Cheerio {
+public:
+	float position[3];
+	float rotationAngle = 0;
+
+	Cheerio() {
+		// set position random
+		//randomPosition();
+		//reset();
+	};
+
+	//given a certain table size 
+	void randomPosition() {
+		int a = rand() % mapRows;
+		int b = rand() % mapCols;
+		while (mapRoad[a][b] != 1) {
+			a = rand() % mapRows;
+			b = rand() % mapCols;
+		}
+
+		position[0] = b * 5 + static_cast <float> (rand()) / (static_cast <float> (RAND_MAX / 5));
+		position[2] = a * 5 + static_cast <float> (rand()) / (static_cast <float> (RAND_MAX / 5));
+		//printf("butter, p0: %f, p1: %f", position[0], position[1]);
+	}
+
+	bool isOnTable() {
+		if (position[0] > tableX || position[0] < 0)
+			return false;
+
+		if (position[2] > tableZ || position[0] < 0)
+			return false;
+
+		return true;
+	}
+
+	void reset(int k, int j) {
+		position[0] = roadWidth * j + roadWidth / 2;
+		position[1] = 1.0f;
+		position[2] = roadWidth * k + roadWidth / 2;
+		//randomPosition();
+	}
+};
+
 float lookAtX = 0;
 float lookAtY = 0;
 float lookAtZ = 0;
@@ -445,6 +544,7 @@ class Game {
 	public:Butter butter[numButter];
 	public:Spotlight textureSl;
 	public:bool isTextureSpOn = false;
+	public:Cheerio cheerio[141];
 	public:float finishLineDimensions[3] = {roadWidth, 0.6, roadWidth};
 	public:float finishLinePos[3] = {tableX - finishLineDimensions[0], 0, tableZ - finishLineDimensions[2]};
 	public:bool isFinished = false;
@@ -475,7 +575,7 @@ class Game {
 			textureSl.dir[2] = camZ;
 		}
 
-		void checkFinish(float* q) {
+		void checkFinish(float* q, float* p) {
 			if (CheckCollision(car.position[0], car.position[2], q[0], q[1], finishLinePos[0], finishLinePos[2], finishLineDimensions[0], finishLineDimensions[2])) {
 				printf("FIM DA CORRIDA\n");
 				finishGame(true);
@@ -492,6 +592,15 @@ class Game {
 			else {
 				cam = 3;
 				car.reset();
+				int k = 0;
+				for (int i = 0; i < mapRows; i++) {
+					for (int j = 0; j < mapCols; j++) {
+						if (mapRoad[i][j] == 2) {
+							cheerio[k].reset(i, j);
+							k++;
+						}	
+					}
+				}
 			}
 		}
 
@@ -530,24 +639,25 @@ class Game {
 		  scale(MODEL, finishLineDimensions[0], finishLineDimensions[1], finishLineDimensions[2]);
 	  }
 
-	  void colisionButterCheerio(float* q) {
+	  void colisionButterCheerio(float* q, float* p) {
 		  float butterCollisionVelocity = 0.8f;
 		  for (int i = 0; i < numButter; i++) {
-			  if (CheckCollision(car.position[0], car.position[2], q[0], q[1], butter[i].position[0], butter[i].position[2], 1, 1)) {
+			  if (CheckCollision(p[0], p[1], q[0], q[1], butter[i].position[0], butter[i].position[2], 1, 1)) {
+			  	  //printf("COLISAO_BUTTER CPX: %f, CPY: %f, p0: %f, p1: %f, q0: %f, q1:%f\n", car.position[0], car.position[2], p[0],p[1],q[0],q[1]);
 				  car.velocity = 0;
 				  butter[i].position[0] += car.direction[0] * butterCollisionVelocity;
 				  butter[i].position[1] += car.direction[1] * butterCollisionVelocity;
 				  butter[i].position[2] += car.direction[2] * butterCollisionVelocity;
 			  }
 		  }
-		  //for (int i = 0; i < numCheerios; i++) {
-			 // if (CheckCollision(car.position[0], car.position[2], q[0], q[1], cheerio[i].position[0], cheerio[i].position[2], 1, 1)) {
-				//  car.velocity = 0;
-				//  cheerio[i].position[0] += car.direction[0] * butterCollisionVelocity;
-				//  cheerio[i].position[1] += car.direction[1] * butterCollisionVelocity;
-				//  cheerio[i].position[2] += car.direction[2] * butterCollisionVelocity;
-			 // }
-		  //}
+		  for (int i = 0; i < numCheerios; i++) {
+			  if (CheckCollision(car.position[0], car.position[2], q[0], q[1], cheerio[i].position[0], cheerio[i].position[2], 1, 1)) {
+				  car.velocity = 0;
+				  cheerio[i].position[0] += car.direction[0] * butterCollisionVelocity;
+				  cheerio[i].position[1] += car.direction[1] * butterCollisionVelocity;
+				  cheerio[i].position[2] += car.direction[2] * butterCollisionVelocity;
+			  }
+		  }
 	  }
 };
 
@@ -605,10 +715,12 @@ void cam1() {
 
 void cam2() {
 	//Prespective Top View Cam
+	if (r < 0.1f)
+		r = 0.1f;
 
-	camX = r * sin(alpha * 3.14f / 180.0f) * cos(beta * 3.14f / 180.0f) + 50;
-	camZ = r * cos(alpha * 3.14f / 180.0f) * cos(beta * 3.14f / 180.0f) + 50;
-	camY = 110;
+	camX = r * sin(alpha * 3.14f / 180.0f) * cos(beta * 3.14f / 180.0f) ;
+	camZ = r * cos(alpha * 3.14f / 180.0f) * cos(beta * 3.14f / 180.0f) ;
+	camY = 10;
 
 	lookAtX = 50.0f;
 	lookAtY = 0.0f;
@@ -646,18 +758,45 @@ bool CheckCollision(int oneXP, int oneYP, int oneXS, int oneYS, int twoXP, int t
 {
 	int oneXP2 = oneXP - oneXS / 2;
 	int oneYP2 = oneYP - oneYS / 2;
-	int twoXP2 = twoXP - twoXS / 2;
-	int twoYP2 = twoYP - twoYS / 2;
 
 
 	// collision x-axis?
-	bool collisionX = oneXP + oneXS >= twoXP &&
-		twoXP + twoXS >= oneXP;
+	bool collisionX = oneXP2 + oneXS >= twoXP &&
+		twoXP + twoXS >= oneXP2;
 	// collision y-axis?
-	bool collisionY = oneYP + oneYS >= twoYP &&
-		twoYP + twoYS >= oneYP;
+	bool collisionY = oneYP2 + oneYS >= twoYP &&
+		twoYP + twoYS >= oneYP2;
 	// collision only if on both axes
 	return collisionX && collisionY;
+}
+
+float* getCarCenter() {
+	float* Dir = new float[2];
+	float* p = new float[2];
+	//float radAndgle = DegToRad(car.carBodyX / car.carBodyY);
+	float angle = DegToRad(-27);
+	float co = cos(angle);
+	float si = sin(angle);
+
+	Dir[0] = game.car.direction[0];
+	Dir[1] = game.car.direction[2];
+	float x = Dir[0];
+	float y = Dir[1];
+	Dir[0] = x * co + y * si;
+	Dir[1] = -x * si + y * co;
+
+	float mag = sqrt(Dir[0] * Dir[0] + Dir[1] * Dir[1] );
+
+	Dir[0] /= mag;
+	Dir[1] /= mag;
+	
+	//printf("d[0]: % f, d[1] : % f\n", car.direction[0], car.direction[1]);
+	//float dist = sqrt(car.carBodyX * car.carBodyX + car.carBodyY * car.carBodyY) / 2;
+	float dist =  1.677;
+	p[0] = game.car.position[0] + Dir[0] * dist;
+	p[1] = game.car.position[2] + Dir[1] * dist;
+
+	return p;
 }
 
 float *getCarSize() {
@@ -665,18 +804,22 @@ float *getCarSize() {
 	float radAngle = DegToRad(angle);
 	float co = cos(radAngle);
 	float si = sin(radAngle);
+
 	float c = co *game.car.carBodyY;
-	float a = si * game.car.carBodyX;
+	float a = si * game.car.carBodyY;
+
 
 	float angle2 = 90.0 - ((int) angle % 90);
 	float radAngle2 = DegToRad(angle2);
 	float co2 = cos(radAngle2);
 	float si2 = sin(radAngle2);
+
 	float d = co2 * game.car.carBodyX;
 	float b = si2 * game.car.carBodyY;
 
-	float x = a + b;
-	float y = c + d;
+
+	float y = a + b;
+	float x = c + d;
 	float* q = new float[2];
 	q[0] = x;
 	q[1] = y;
@@ -775,6 +918,7 @@ void renderScene(void) {
 
 		glUniform1f(slCutOffAngle_uniformId, game.car.spotlights[0]->ang);
 
+
 	glActiveTexture(GL_TEXTURE0);
 	glBindTexture(GL_TEXTURE_2D, TextureArray[0]);
 
@@ -790,6 +934,7 @@ void renderScene(void) {
 	glUniform1i(tex_loc1, 1);
 	glUniform1i(tex_loc2, 2);
 
+	float* p = getCarCenter();
 	float* q = getCarSize();
 	for (int j = 0; j < numButter + numOranges; j++) {
 		if (j < numOranges) {
@@ -799,9 +944,11 @@ void renderScene(void) {
 			}	
 		}
 	}
-
-		game.checkFinish(q);
-		game.colisionButterCheerio(q);
+	if (!game.car.isOnTable()) {
+		game.finishGame(false);
+	}
+		game.checkFinish(q, p);
+		game.colisionButterCheerio(q, p);
 		int objId=0; //id of the object mesh - to be used as index of mesh: Mymeshes[objID] means the current mesh
 		for (int i = 0 ; i < numObjects; ++i) {
 	//		for (int j = 0; j < 2; ++j) {
@@ -965,9 +1112,68 @@ void renderScene(void) {
 
 		for (int j = 0; j < mapRows; j++) {
 			for (int k = 0; k < mapCols; k++) {
-				if (mapRoad[j][k] == 0) {
+				if (mapRoad[j][k] != 1) {
 					continue;
 				}
+				//printf("numR:  %d", numRoads);
+				// send the material
+				loc = glGetUniformLocation(shader.getProgramIndex(), "mat.ambient");
+				glUniform4fv(loc, 1, myMeshes[objId].mat.ambient);
+				loc = glGetUniformLocation(shader.getProgramIndex(), "mat.diffuse");
+				glUniform4fv(loc, 1, myMeshes[objId].mat.diffuse);
+				loc = glGetUniformLocation(shader.getProgramIndex(), "mat.specular");
+				glUniform4fv(loc, 1, myMeshes[objId].mat.specular);
+				loc = glGetUniformLocation(shader.getProgramIndex(), "mat.shininess");
+				glUniform1f(loc, myMeshes[objId].mat.shininess);
+				pushMatrix(MODEL);
+
+				// TODO THIS IS SHIT I WANT THIS WHEN DEFINING THE VO in the init() func
+				// Values correspond to 0,0 on the table coords = wc
+				float torusY = 1.0f; //z in world coords
+				float carBodyX = 1.5f;
+				float carBodyY = 3.0f;
+				float jointCarGap = -0.5f;
+
+				//game.car.move();
+				float* position = game.car.position;
+
+				if (mapRoad[j][k] == 1) {
+					translate(MODEL, roadWidth * k, 0.1f, roadWidth * j);
+					scale(MODEL, roadWidth, 0.5, roadWidth);
+				}
+				else if (mapRoad[j][k] == 27) {
+					translate(MODEL, roadTurn * k, 0.1f, roadTurn * j);
+					scale(MODEL, roadTurn, 0.5, roadTurn);
+				}
+				// send matrices to OGL
+				computeDerivedMatrix(PROJ_VIEW_MODEL);
+				glUniformMatrix4fv(vm_uniformId, 1, GL_FALSE, mCompMatrix[VIEW_MODEL]);
+				glUniformMatrix4fv(pvm_uniformId, 1, GL_FALSE, mCompMatrix[PROJ_VIEW_MODEL]);
+				computeNormalMatrix3x3();
+				glUniformMatrix3fv(normal_uniformId, 1, GL_FALSE, mNormal3x3);
+
+				// Render mesh
+				glUniform1i(texMode_uniformId, 1);
+				glBindVertexArray(myMeshes[objId].vao);
+
+				if (!shader.isProgramValid()) {
+					printf("Program Not Valid!\n");
+					exit(1);
+				}
+				glDrawElements(myMeshes[objId].type, myMeshes[objId].numIndexes, GL_UNSIGNED_INT, 0);
+				glBindVertexArray(0);
+
+				popMatrix(MODEL);
+				objId++;
+			}
+		}
+		int iteCheerio = 0;
+		for (int j = 0; j < mapRows; j++) {
+			for (int k = 0; k < mapCols; k++) {
+				if (mapRoad[j][k] !=2) {
+					continue;
+				}
+				
 				//printf("numR:  %d", numRoads);
 				// send the material
 				loc = glGetUniformLocation(shader.getProgramIndex(), "mat.ambient");
@@ -990,14 +1196,12 @@ void renderScene(void) {
 				game.car.move();
 				float* position = game.car.position;
 
-				if (mapRoad[j][k] == 1) {
-					translate(MODEL, roadWidth * k, 0.1f, roadWidth * j);
-					scale(MODEL, roadWidth, 0.5, roadWidth);
+				if (mapRoad[j][k] == 2) {
+					translate(MODEL, game.cheerio[iteCheerio].position[0], game.cheerio[iteCheerio].position[1], game.cheerio[iteCheerio].position[2]);
+					scale(MODEL, roadWidth - 2, 1.5, roadWidth - 2);
+					iteCheerio++;
 				}
-				else if (mapRoad[j][k] == 2) {
-					translate(MODEL, roadTurn * k, 0.1f, roadTurn * j);
-					scale(MODEL, roadTurn, 0.5, roadTurn);
-				}
+				
 				// send matrices to OGL
 				computeDerivedMatrix(PROJ_VIEW_MODEL);
 				glUniformMatrix4fv(vm_uniformId, 1, GL_FALSE, mCompMatrix[VIEW_MODEL]);
@@ -1581,6 +1785,7 @@ void init()
 
 
 	numRoads = CalcRoads();
+	//numCheerios = CalcCheerios();
 
 
 	float amb[] = { 0.2f, 0.15f, 0.1f, 1.0f };
@@ -1716,18 +1921,30 @@ void init()
 	};
 	
 	// Cheerios
-	//for (int i = 0; i < numRoads; i++) {
+	for (int i = 0; i < numCheerios; i++) {
 
-	//	amesh = createTorus(0.1f, 0.5f, 20, 20);
-	//	memcpy(amesh.mat.ambient, amb3, 4 * sizeof(float));
-	//	memcpy(amesh.mat.diffuse, diff2, 4 * sizeof(float));
-	//	memcpy(amesh.mat.specular, spec2, 4 * sizeof(float));
-	//	memcpy(amesh.mat.emissive, emissive, 4 * sizeof(float));
-	//	amesh.mat.shininess = shininess;
-	//	amesh.mat.texCount = texcount;
-	//	myMeshes.push_back(amesh);
-	//	numObjects++;
-	//};
+		amesh = createTorus(0.1f, 0.5f, 20, 20);
+		memcpy(amesh.mat.ambient, amb3, 4 * sizeof(float));
+		memcpy(amesh.mat.diffuse, diff2, 4 * sizeof(float));
+		memcpy(amesh.mat.specular, spec2, 4 * sizeof(float));
+		memcpy(amesh.mat.emissive, emissive, 4 * sizeof(float));
+		amesh.mat.shininess = shininess;
+		amesh.mat.texCount = texcount;
+		myMeshes.push_back(amesh);
+		//numObjects++;
+	};
+	int iteCheerio = 0;
+	for (int j = 0; j < mapRows; j++) {
+		for (int k = 0; k < mapCols; k++) {
+			if (mapRoad[j][k] == 2) {
+				game.cheerio[iteCheerio].position[0] = roadWidth * k + roadWidth / 2;
+				game.cheerio[iteCheerio].position[1] = 1.0f;
+				game.cheerio[iteCheerio].position[2] = roadWidth * j + roadWidth / 2;
+				iteCheerio++;
+			}
+			
+		}
+	}
 	
 	// some GL settings
 	//glEnable(GL_DEPTH_TEST);
@@ -1775,7 +1992,7 @@ int main(int argc, char **argv) {
 	glutKeyboardUpFunc(keyUp);
 	glutMouseFunc(processMouseButtons);
 	glutMotionFunc(processMouseMotion);
-	glutMouseWheelFunc ( mouseWheel ) ;
+    //glutMouseWheelFunc ( mouseWheel ) ;
 	
 
 //	return from main loop
