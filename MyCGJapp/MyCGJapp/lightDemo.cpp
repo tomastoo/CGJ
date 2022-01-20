@@ -88,11 +88,14 @@ GLint slPosTexture_uniformId;
 GLint slDirTexture_uniformId;
 GLint slCutOffAngleTexture_uniformId;
 
+GLint is_fog_on_uniformId;
+GLint fog_maxdist_uniformId;
+
 GLint tex_loc, tex_loc1, tex_loc2;
 GLint texMode_uniformId;
 
 GLuint TextureArray[3];
-	
+
 // Camera Position
 float camX, camY, camZ;
 
@@ -109,7 +112,7 @@ float alpha_cam3 = -90.0f, beta_cam3 = 0.0f;
 float r = 10.0f;
 
 // Frame counting and FPS computation
-long myTime,timebase = 0,frame = 0;
+long myTime, timebase = 0, frame = 0;
 char s[32];
 float tableX = 100;
 float tableY = 0.5;
@@ -124,12 +127,12 @@ const float plGrid[2] = { 4,3 }; // This means that the point lights will be dev
 						// |_|_|_|_| like this so the first value is the number of 
 						// |_|_|_|_| collumns and the second is the number of rows 
 						// |_|_|_|_| (x,z)
-					
 
-float lightPos[6][4] = {{tableX / plGrid[0], tableY + pointLightsHight, tableZ / plGrid[1], 0.0f},
+
+float lightPos[6][4] = { {tableX / plGrid[0], tableY + pointLightsHight, tableZ / plGrid[1], 0.0f},
 						{(tableX / plGrid[0]) * 2, tableY + pointLightsHight, (tableZ / plGrid[1]), 0.0f},
-						{(tableX / plGrid[0]) * 3, tableY + pointLightsHight, (tableZ / plGrid[1]), 0.0f}, 
-						{(tableX / plGrid[0]), tableY + pointLightsHight, (tableZ / plGrid[1]) * 2, 0.0f}, 
+						{(tableX / plGrid[0]) * 3, tableY + pointLightsHight, (tableZ / plGrid[1]), 0.0f},
+						{(tableX / plGrid[0]), tableY + pointLightsHight, (tableZ / plGrid[1]) * 2, 0.0f},
 						{(tableX / plGrid[0]) * 2, tableY + pointLightsHight, (tableZ / plGrid[1]) * 2, 0.0f},
 						{(tableX / plGrid[0]) * 3, tableY + pointLightsHight, (tableZ / plGrid[1]) * 2, 0.0f}, };
 
@@ -215,7 +218,7 @@ class RoadSegment {
 	RoadID _id;
 	RoadID _connections[2];
 	Vec3D _positions[2];
-	
+
 };
 
 class RoadID {
@@ -226,6 +229,7 @@ class RoadID {
 bool isDirectionalLightOn = false;
 bool isPointLightsOn = false;
 bool isSpotLightsOn = false;
+bool isFogOn = false;
 
 bool CheckCollision(int oneXP, int oneYP, int oneXS, int oneYS, int twoXP, int twoYP, int twoXS, int twoYS); // AABB - AABB collision
 
@@ -236,138 +240,138 @@ struct Spotlight
 	float ang;
 };
 class Car {
-	public:
-		float position[3] = { 0.0f, 0.0f, 0.0f }; 
-		float minVelocity = 0.0f;
-		float maxVelocity = 0.01f;
-		float velocity = 0.0f;
-		float direction[4] = { 1.0f, 0.0f, 0.0f, 0.0f };
-		float directionAngle = 0;
-		float rotationAngle = 1.5f;
-		float isForward = true;
-		struct Spotlight *spotlights[2];
-		
-		float torusY = 1.0f; //z in world coords
-		float carBodyX = 1.5f;
-		float carBodyY = 3.0f;
-		float jointCarGap = -0.5f;
+public:
+	float position[3] = { 0.0f, 0.0f, 0.0f };
+	float minVelocity = 0.0f;
+	float maxVelocity = 0.01f;
+	float velocity = 0.0f;
+	float direction[4] = { 1.0f, 0.0f, 0.0f, 0.0f };
+	float directionAngle = 0;
+	float rotationAngle = 1.5f;
+	float isForward = true;
+	struct Spotlight* spotlights[2];
 
-		Car() {
-			float marginX[2] = { carBodyY, carBodyY};
-			float marginY[2] = { 0.8f, 0.8f };
-			float marginZ[2] = { 0.f, carBodyX };
-			for (int i = 0; i < 2; i++) {
-				spotlights[i] = new Spotlight;
+	float torusY = 1.0f; //z in world coords
+	float carBodyX = 1.5f;
+	float carBodyY = 3.0f;
+	float jointCarGap = -0.5f;
 
-				// SPOTLIGHTS CUT OFF ANGLE OF CONE 
-				spotlights[i]->ang = cos(DegToRad(8.5f));
-				// W
-				spotlights[i]->pos[3] = 0.f;
+	Car() {
+		float marginX[2] = { carBodyY, carBodyY };
+		float marginY[2] = { 0.8f, 0.8f };
+		float marginZ[2] = { 0.f, carBodyX };
+		for (int i = 0; i < 2; i++) {
+			spotlights[i] = new Spotlight;
 
-				spotlights[i]->pos[0] = position[0] + marginX[i];
-				// Y
-				spotlights[i]->pos[1] = position[1] + marginY[i];
-				// Z
-				spotlights[i]->pos[2] = position[2] + marginZ[i];
-			}
-			updateSpotlights();
-		};
+			// SPOTLIGHTS CUT OFF ANGLE OF CONE 
+			spotlights[i]->ang = cos(DegToRad(8.5f));
+			// W
+			spotlights[i]->pos[3] = 0.f;
 
-		void updateSpotlights() {
-			float marginX[2] = { carBodyY , carBodyY };
-			float marginY[2] = { 1.f, 1.f };
-			float marginZ[2] = { 0.f, carBodyX };
-
-			float forward;
-			
-			if (!isForward) {
-				forward = -1;
-			}
-			else {
-				forward = 1;
-			}
-			
-			for (int i = 0; i < 2; i++) {
-				// SPOTLIGHTS DIRECTION
-				for (int j = 0; j < 4; j++) {
-
-					spotlights[i]->dir[j] = forward*direction[j];
-				}
-			}
-			// RIGHT SPOTLIGHT 
-			// X
-			spotlights[1]->pos[0] = position[0] + marginZ[1] * sin(DegToRad(directionAngle)) +  marginX[1] * cos(DegToRad(directionAngle));
+			spotlights[i]->pos[0] = position[0] + marginX[i];
 			// Y
-			spotlights[1]->pos[1] = position[1] + marginY[1];
+			spotlights[i]->pos[1] = position[1] + marginY[i];
 			// Z
-			spotlights[1]->pos[2] = position[2] - marginX[1] * sin(DegToRad(directionAngle)) + marginZ[1] * cos(DegToRad(directionAngle));
-
-			// LEFT SPOTLIGHT 
-			// X
-			spotlights[0]->pos[0] = position[0] + marginX[0] * cos(DegToRad(directionAngle));
-			// Y
-			spotlights[0]->pos[1] = position[1] + marginY[0];
-			// Z
-			spotlights[0]->pos[2] = position[2] - marginX[0] * sin(DegToRad(directionAngle));
-
+			spotlights[i]->pos[2] = position[2] + marginZ[i];
 		}
-		bool isOnTable() {
-			if (position[0] > tableX || position[0] < 0)
-				return false;
+		updateSpotlights();
+	};
 
-			if (position[2] > tableZ || position[2] < 0)
-				return false;
+	void updateSpotlights() {
+		float marginX[2] = { carBodyY , carBodyY };
+		float marginY[2] = { 1.f, 1.f };
+		float marginZ[2] = { 0.f, carBodyX };
 
-			return true;
+		float forward;
+
+		if (!isForward) {
+			forward = -1;
 		}
-		void reset() {
-			direction[0] = 1;
-			for (int i = 0; i < 3; i++) {
-				position[i] = 0;
-				direction[i + 1] = 0;
+		else {
+			forward = 1;
+		}
+
+		for (int i = 0; i < 2; i++) {
+			// SPOTLIGHTS DIRECTION
+			for (int j = 0; j < 4; j++) {
+
+				spotlights[i]->dir[j] = forward * direction[j];
 			}
-			directionAngle = 0;
-			alpha_cam3 = -90.0f;
-			beta_cam3 = 0.0f;
-			isForward = true;
-			updateSpotlights();
 		}
-		void move() {
-			position[0] += direction[0] * velocity;
-			position[1] += direction[1] * velocity;
-			position[2] += direction[2] * velocity;
-			updateSpotlights();
-		};
+		// RIGHT SPOTLIGHT 
+		// X
+		spotlights[1]->pos[0] = position[0] + marginZ[1] * sin(DegToRad(directionAngle)) + marginX[1] * cos(DegToRad(directionAngle));
+		// Y
+		spotlights[1]->pos[1] = position[1] + marginY[1];
+		// Z
+		spotlights[1]->pos[2] = position[2] - marginX[1] * sin(DegToRad(directionAngle)) + marginZ[1] * cos(DegToRad(directionAngle));
 
-		void changeDirection(float isRight) {
-			float* newDir;
-			if (isRight) {
-				alpha_cam3 -= rotationAngle;
-				directionAngle -= rotationAngle;
-				newDir = rotateVec4(direction, -rotationAngle, 0, 1, 0);
-				//rotateSpotlights(-rotationAngle);
-			}
-			else {
-				directionAngle += rotationAngle;
-				alpha_cam3 += rotationAngle;
-				newDir = rotateVec4(direction, rotationAngle, 0, 1, 0);
+		// LEFT SPOTLIGHT 
+		// X
+		spotlights[0]->pos[0] = position[0] + marginX[0] * cos(DegToRad(directionAngle));
+		// Y
+		spotlights[0]->pos[1] = position[1] + marginY[0];
+		// Z
+		spotlights[0]->pos[2] = position[2] - marginX[0] * sin(DegToRad(directionAngle));
 
-				//rotateSpotlights(rotationAngle);
-			}
-			for (int i = 0; i < 3; i++) {
-				direction[i] = newDir[i];
-			}
-			updateSpotlights();
+	}
+	bool isOnTable() {
+		if (position[0] > tableX || position[0] < 0)
+			return false;
+
+		if (position[2] > tableZ || position[2] < 0)
+			return false;
+
+		return true;
+	}
+	void reset() {
+		direction[0] = 1;
+		for (int i = 0; i < 3; i++) {
+			position[i] = 0;
+			direction[i + 1] = 0;
 		}
+		directionAngle = 0;
+		alpha_cam3 = -90.0f;
+		beta_cam3 = 0.0f;
+		isForward = true;
+		updateSpotlights();
+	}
+	void move() {
+		position[0] += direction[0] * velocity;
+		position[1] += direction[1] * velocity;
+		position[2] += direction[2] * velocity;
+		updateSpotlights();
+	};
 
-		void setDirection(float newDirection[3]) {
-			direction[0] = newDirection[0];
-			direction[1] = newDirection[1];
-			direction[2] = newDirection[2];
+	void changeDirection(float isRight) {
+		float* newDir;
+		if (isRight) {
+			alpha_cam3 -= rotationAngle;
+			directionAngle -= rotationAngle;
+			newDir = rotateVec4(direction, -rotationAngle, 0, 1, 0);
+			//rotateSpotlights(-rotationAngle);
 		}
+		else {
+			directionAngle += rotationAngle;
+			alpha_cam3 += rotationAngle;
+			newDir = rotateVec4(direction, rotationAngle, 0, 1, 0);
+
+			//rotateSpotlights(rotationAngle);
+		}
+		for (int i = 0; i < 3; i++) {
+			direction[i] = newDir[i];
+		}
+		updateSpotlights();
+	}
+
+	void setDirection(float newDirection[3]) {
+		direction[0] = newDirection[0];
+		direction[1] = newDirection[1];
+		direction[2] = newDirection[2];
+	}
 };
 
-class Orange{
+class Orange {
 public:
 	const float velocityIncrease = 0.0005f;
 	const float veloctityIntervalIncrease = 0.0001f;
@@ -382,7 +386,7 @@ public:
 		// set position random
 		reset();
 	};
-	
+
 	void move() {
 		position[0] += direction[0] * velocity;
 		position[1] += direction[1] * velocity;
@@ -400,9 +404,9 @@ public:
 	}
 
 	bool isOnTable() {
-		if (position[0] > tableX || position[0] < 0) 
+		if (position[0] > tableX || position[0] < 0)
 			return false;
-		
+
 		if (position[2] > tableZ || position[2] < 0)
 			return false;
 
@@ -435,7 +439,7 @@ public:
 			velocity = maxVelocity;
 		}
 	}
-	
+
 	void renderOrange() {
 		move();
 		if (!isOnTable()) {
@@ -460,7 +464,7 @@ public:
 		randomPosition();
 		//reset();
 	};
-	
+
 	//given a certain table size 
 	void randomPosition() {
 		int a = rand() % mapRows;
@@ -469,9 +473,9 @@ public:
 			a = rand() % mapRows;
 			b = rand() % mapCols;
 		}
-		
-		position[0] = b*5 + static_cast <float> (rand()) / (static_cast <float> (RAND_MAX / 5));
-		position[2] = a*5 + static_cast <float> (rand()) / (static_cast <float> (RAND_MAX / 5));
+
+		position[0] = b * 5 + static_cast <float> (rand()) / (static_cast <float> (RAND_MAX / 5));
+		position[2] = a * 5 + static_cast <float> (rand()) / (static_cast <float> (RAND_MAX / 5));
 		printf("butter, p0: %f, p1: %f", position[0], position[1]);
 	}
 
@@ -539,79 +543,80 @@ float lookAtY = 0;
 float lookAtZ = 0;
 
 class Game {
-	public:Car car;
-	public:Orange orange[numOranges];
-	public:Butter butter[numButter];
-	public:Spotlight textureSl;
-	public:bool isTextureSpOn = false;
-	public:Cheerio cheerio[141];
-	public:float finishLineDimensions[3] = {roadWidth, 0.6, roadWidth};
-	public:float finishLinePos[3] = {tableX - finishLineDimensions[0], 0, tableZ - finishLineDimensions[2]};
-	public:bool isFinished = false;
-	public:bool win;
+public:Car car;
+public:Orange orange[numOranges];
+public:Butter butter[numButter];
+public:Spotlight textureSl;
+public:bool isTextureSpOn = false;
+public:Cheerio cheerio[141];
+public:float finishLineDimensions[3] = { roadWidth, 0.6, roadWidth };
+public:float finishLinePos[3] = { tableX - finishLineDimensions[0], 0, tableZ - finishLineDimensions[2] };
+public:bool isFinished = false;
+public:bool win;
+public:float fogMaxDistance = 100;
 
-		Game(){
-			textureSl.pos[0] = car.position[0];
-			textureSl.pos[1] = car.position[0];
-			textureSl.pos[2] = car.position[0];
-			textureSl.pos[3] = 0;
+	  Game() {
+		  textureSl.pos[0] = car.position[0];
+		  textureSl.pos[1] = car.position[0];
+		  textureSl.pos[2] = car.position[0];
+		  textureSl.pos[3] = 0;
 
-			textureSl.dir[0] = 0;
-			textureSl.dir[1] = 0;
-			textureSl.dir[2] = 0;
-			textureSl.dir[3] = 0;
+		  textureSl.dir[0] = 0;
+		  textureSl.dir[1] = 0;
+		  textureSl.dir[2] = 0;
+		  textureSl.dir[3] = 0;
 
-			textureSl.ang = cos(DegToRad(12.5f));
-		}
+		  textureSl.ang = cos(DegToRad(12.5f));
+	  }
 
-		//update texture spotlight key l
-		void updateTextureSl() {
-			textureSl.pos[0] = lookAtX;
-			textureSl.pos[1] = lookAtY;
-			textureSl.pos[2] = lookAtZ;
+	  //update texture spotlight key l
+	  void updateTextureSl() {
+		  textureSl.pos[0] = lookAtX;
+		  textureSl.pos[1] = lookAtY;
+		  textureSl.pos[2] = lookAtZ;
 
-			textureSl.dir[0] = camX;
-			textureSl.dir[1] = camY;
-			textureSl.dir[2] = camZ;
-		}
+		  textureSl.dir[0] = camX;
+		  textureSl.dir[1] = camY;
+		  textureSl.dir[2] = camZ;
+	  }
 
-		void checkFinish(float* q, float* p) {
-			if (CheckCollision(car.position[0], car.position[2], q[0], q[1], finishLinePos[0], finishLinePos[2], finishLineDimensions[0], finishLineDimensions[2])) {
-				printf("FIM DA CORRIDA\n");
-				finishGame(true);
-			}
-		}
+	  void checkFinish(float* q, float* p) {
+		  if (CheckCollision(car.position[0], car.position[2], q[0], q[1], finishLinePos[0], finishLinePos[2], finishLineDimensions[0], finishLineDimensions[2])) {
+			  printf("FIM DA CORRIDA\n");
+			  finishGame(true);
+		  }
+	  }
 
-		void finishGame(bool win) {
-			if (win) {
-				cam = 1;
-				this->win = win;
-				RenderText(shaderText, "You win!", 25.0f, 25.0f, 1.0f, 0.5f, 0.8f, 0.2f);
-				isFinished = true;
-			}
-			else {
-				cam = 3;
-				car.reset();
-				int k = 0;
-				for (int i = 0; i < mapRows; i++) {
-					for (int j = 0; j < mapCols; j++) {
-						if (mapRoad[i][j] == 2) {
-							cheerio[k].reset(i, j);
-							k++;
-						}	
-					}
-				}
-			}
-		}
+	  void finishGame(bool win) {
+		  if (win) {
+			  cam = 1;
+			  this->win = win;
+			  RenderText(shaderText, "You win!", 25.0f, 25.0f, 1.0f, 0.5f, 0.8f, 0.2f);
+			  isFinished = true;
+		  }
+		  else {
+			  cam = 3;
+			  car.reset();
+			  int k = 0;
+			  for (int i = 0; i < mapRows; i++) {
+				  for (int j = 0; j < mapCols; j++) {
+					  if (mapRoad[i][j] == 2) {
+						  cheerio[k].reset(i, j);
+						  k++;
+					  }
+				  }
+			  }
+		  }
+	  }
 
-		void renderGameEnd() {
-			if (win) {
-				cam = 1;
-				RenderText(shaderText, "You win!", 25.0f, 25.0f, 1.0f, 0.5f, 0.8f, 0.2f);
-			}
-		}
+	  void renderGameEnd() {
+		  if (win) {
+			  cam = 1;
+			  RenderText(shaderText, "You win!", 25.0f, 25.0f, 1.0f, 0.5f, 0.8f, 0.2f);
+		  }
+	  }
 
-		void createFinishLine() {
+	  void createFinishLine() {
 
 		  float amb1[] = { 0.3f, 0.0f, 0.0f, 1.0f };
 		  float diff1[] = { 0.8f, 0.1f, 0.1f, 1.0f };
@@ -620,18 +625,18 @@ class Game {
 		  float emissive[] = { 0.0f, 0.0f, 0.0f, 1.0f };
 		  int texcount = 0;
 
-			MyMesh amesh;
+		  MyMesh amesh;
 
-			amesh = createCube();
-			memcpy(amesh.mat.ambient, amb1, 4 * sizeof(float));
-			memcpy(amesh.mat.diffuse, diff1, 4 * sizeof(float));
-			memcpy(amesh.mat.specular, spec1, 4 * sizeof(float));
-			memcpy(amesh.mat.emissive, emissive, 4 * sizeof(float));
-			amesh.mat.shininess = shininess;
-			amesh.mat.texCount = texcount;
-			myMeshes.push_back(amesh);
-			numObjects++;
-		}
+		  amesh = createCube();
+		  memcpy(amesh.mat.ambient, amb1, 4 * sizeof(float));
+		  memcpy(amesh.mat.diffuse, diff1, 4 * sizeof(float));
+		  memcpy(amesh.mat.specular, spec1, 4 * sizeof(float));
+		  memcpy(amesh.mat.emissive, emissive, 4 * sizeof(float));
+		  amesh.mat.shininess = shininess;
+		  amesh.mat.texCount = texcount;
+		  myMeshes.push_back(amesh);
+		  numObjects++;
+	  }
 
 	  void renderFinishLine() {
 		  translate(MODEL, finishLinePos[0], finishLinePos[1], finishLinePos[2]);
@@ -643,7 +648,7 @@ class Game {
 		  float butterCollisionVelocity = 0.8f;
 		  for (int i = 0; i < numButter; i++) {
 			  if (CheckCollision(p[0], p[1], q[0], q[1], butter[i].position[0], butter[i].position[2], 1, 1)) {
-			  	  //printf("COLISAO_BUTTER CPX: %f, CPY: %f, p0: %f, p1: %f, q0: %f, q1:%f\n", car.position[0], car.position[2], p[0],p[1],q[0],q[1]);
+				  //printf("COLISAO_BUTTER CPX: %f, CPY: %f, p0: %f, p1: %f, q0: %f, q1:%f\n", car.position[0], car.position[2], p[0],p[1],q[0],q[1]);
 				  car.velocity = 0;
 				  butter[i].position[0] += car.direction[0] * butterCollisionVelocity;
 				  butter[i].position[1] += car.direction[1] * butterCollisionVelocity;
@@ -670,14 +675,14 @@ void timer(int value)
 	std::string s = oss.str();
 	glutSetWindow(WindowHandle);
 	glutSetWindowTitle(s.c_str());
-    FrameCount = 0;
-    glutTimerFunc(1000, timer, 0);
+	FrameCount = 0;
+	glutTimerFunc(1000, timer, 0);
 }
 
 void refresh(int value)
 {
 	//PUT YOUR CODE HERE
-	glutTimerFunc(1000/60, refresh, 0);
+	glutTimerFunc(1000 / 60, refresh, 0);
 	glutPostRedisplay();
 }
 
@@ -690,7 +695,7 @@ void changeSize(int w, int h) {
 
 	float ratio;
 	// Prevent a divide by zero, when window is too short
-	if(h == 0)
+	if (h == 0)
 		h = 1;
 	// set the viewport to be the entire window
 	glViewport(0, 0, w, h);
@@ -710,7 +715,9 @@ void cam1() {
 	lookAtX = 50.0f;
 	lookAtY = 0.0f;
 	lookAtZ = 50.0f;
+	game.fogMaxDistance = 300;
 	cam = 1;
+
 };
 
 void cam2() {
@@ -718,14 +725,17 @@ void cam2() {
 	if (r < 0.1f)
 		r = 0.1f;
 
-	camX = r * sin(alpha * 3.14f / 180.0f) * cos(beta * 3.14f / 180.0f) ;
-	camZ = r * cos(alpha * 3.14f / 180.0f) * cos(beta * 3.14f / 180.0f) ;
+	camX = r * sin(alpha * 3.14f / 180.0f) * cos(beta * 3.14f / 180.0f);
+	camZ = r * cos(alpha * 3.14f / 180.0f) * cos(beta * 3.14f / 180.0f);
 	camY = 10;
 
 	lookAtX = 50.0f;
 	lookAtY = 0.0f;
 	lookAtZ = 50.0f;
 	//perspective(1.0f, 1.0f, -1, 1);
+	
+	game.fogMaxDistance = 100;
+
 	cam = 2;
 
 };
@@ -749,6 +759,9 @@ void cam3() {
 	lookAtX = game.car.position[0];
 	lookAtY = game.car.position[1];
 	lookAtZ = game.car.position[2];
+	
+	game.fogMaxDistance = 50;
+	
 	cam = 3;
 };
 
@@ -785,31 +798,31 @@ float* getCarCenter() {
 	Dir[0] = x * co + y * si;
 	Dir[1] = -x * si + y * co;
 
-	float mag = sqrt(Dir[0] * Dir[0] + Dir[1] * Dir[1] );
+	float mag = sqrt(Dir[0] * Dir[0] + Dir[1] * Dir[1]);
 
 	Dir[0] /= mag;
 	Dir[1] /= mag;
-	
+
 	//printf("d[0]: % f, d[1] : % f\n", car.direction[0], car.direction[1]);
 	//float dist = sqrt(car.carBodyX * car.carBodyX + car.carBodyY * car.carBodyY) / 2;
-	float dist =  1.677;
+	float dist = 1.677;
 	p[0] = game.car.position[0] + Dir[0] * dist;
 	p[1] = game.car.position[2] + Dir[1] * dist;
 
 	return p;
 }
 
-float *getCarSize() {
+float* getCarSize() {
 	float angle = game.car.rotationAngle;
 	float radAngle = DegToRad(angle);
 	float co = cos(radAngle);
 	float si = sin(radAngle);
 
-	float c = co *game.car.carBodyY;
+	float c = co * game.car.carBodyY;
 	float a = si * game.car.carBodyY;
 
 
-	float angle2 = 90.0 - ((int) angle % 90);
+	float angle2 = 90.0 - ((int)angle % 90);
 	float radAngle2 = DegToRad(angle2);
 	float co2 = cos(radAngle2);
 	float si2 = sin(radAngle2);
@@ -825,9 +838,75 @@ float *getCarSize() {
 	q[1] = y;
 	return q;
 
-	
+
 }
 
+void renderFog() {
+	if (isFogOn) {
+		glUniform1f(fog_maxdist_uniformId, game.fogMaxDistance);
+		glUniform1i(is_fog_on_uniformId, 1);
+	}
+	else {
+		glUniform1i(is_fog_on_uniformId, 0);
+	}
+}
+
+void renderTextures() {
+	float res1[4];
+	multMatrixPoint(VIEW, game.textureSl.dir, res1);
+	//printf("spotlight 0 dir = { %.1f, %.1f, %.1f, %.1f}\n", res2[0], res2[1], res2[2], res2[3]);
+	glUniform4fv(slDirTexture_uniformId, 1, res1);
+
+	multMatrixPoint(VIEW, game.textureSl.pos, res1);
+	glUniform4fv(slPosTexture_uniformId, 1, res1);
+
+	glUniform1f(slCutOffAngleTexture_uniformId, game.textureSl.ang);
+
+	glActiveTexture(GL_TEXTURE0);
+	glBindTexture(GL_TEXTURE_2D, TextureArray[0]);
+
+	glActiveTexture(GL_TEXTURE1);
+	glBindTexture(GL_TEXTURE_2D, TextureArray[1]);
+
+	glActiveTexture(GL_TEXTURE2);
+	glBindTexture(GL_TEXTURE_2D, TextureArray[2]);
+
+
+	//Indicar aos tres samplers do GLSL quais os Texture Units a serem usados
+	glUniform1i(tex_loc, 0);
+	glUniform1i(tex_loc1, 1);
+	glUniform1i(tex_loc2, 2);
+}
+
+void renderLights() {
+	float res[6][4];
+	float res2[4];
+
+	for (int i = 0; i < 6; i++) {
+		multMatrixPoint(VIEW, lightPos[i], res[i]);   //lightPos definido em World Coord so is converted to eye space
+		glUniform4fv(lPos_uniformId[i], 1, res[i]);
+	}
+
+	multMatrixPoint(VIEW, directionalLight, res2);  
+	glUniform4fv(lDir_uniformId, 1, res2);
+
+	multMatrixPoint(VIEW, game.car.spotlights[0]->dir, res2);
+	glUniform4fv(slDir_uniformId[0], 1, res2);
+
+	multMatrixPoint(VIEW, game.car.spotlights[1]->dir, res2);
+	glUniform4fv(slDir_uniformId[1], 1, res2);
+
+
+	multMatrixPoint(VIEW, game.car.spotlights[0]->pos, res2);
+	glUniform4fv(slPos_uniformId[0], 1, res2);
+
+
+	multMatrixPoint(VIEW, game.car.spotlights[1]->pos, res2);
+	glUniform4fv(slPos_uniformId[1], 1, res2);
+
+
+	glUniform1f(slCutOffAngle_uniformId, game.car.spotlights[0]->ang);
+}
 // ------------------------------------------------ ------------
 //
 // Render stufff
@@ -844,203 +923,125 @@ void renderScene(void) {
 	loadIdentity(MODEL);
 	// set the camera using a function similar to gluLookAt
 
-	lookAt(camX, camY, camZ, lookAtX, lookAtY, lookAtZ, 0,1,0);
+	lookAt(camX, camY, camZ, lookAtX, lookAtY, lookAtZ, 0, 1, 0);
 
 	if (!game.isFinished) {
-	
+
 		// use our shader
 		glUseProgram(shader.getProgramIndex());
 		game.updateTextureSl();
-		// SPOTLIGHT TEXTURE
 
-		float res1[4];
+		renderFog();
+		renderTextures();
+		renderLights();
 
-		multMatrixPoint(VIEW, game.textureSl.dir, res1);
-		//printf("spotlight 0 dir = { %.1f, %.1f, %.1f, %.1f}\n", res2[0], res2[1], res2[2], res2[3]);
-		glUniform4fv(slDirTexture_uniformId, 1, res1);
-
-		multMatrixPoint(VIEW, game.textureSl.pos, res1);
-		glUniform4fv(slPosTexture_uniformId, 1, res1);
-
-		glUniform1f(slCutOffAngleTexture_uniformId, game.textureSl.ang);
-
-		//send the light position in eye coordinates
-		//glUniform4fv(lPos_uniformId, 1, lightPos); //efeito capacete do mineiro, ou seja lighPos foi definido em eye coord 
-
-		float res[6][4];
-		float res2[4];
-
-		for (int i = 0; i < 6; i++) {
-			//printf("Point light = { %.1f, %.1f, %.1f, %.1f}\n", lightPos[i][0], lightPos[i][1], lightPos[i][2], lightPos[i][3]);
-			multMatrixPoint(VIEW, lightPos[i], res[i]);   //lightPos definido em World Coord so is converted to eye space
-			//printf("WORLD COORDS Point light = { %.1f, %.1f, %.1f, %.1f}\n", res[i][0], res[i][1], res[i][2], res[i][3]);
-			//printf("Point light uniform ID= { %d }\n", lPos_uniformId[i]);
-
-			glUniform4fv(lPos_uniformId[i], 1, res[i]);
-
+		float* p = getCarCenter();
+		float* q = getCarSize();
+		for (int j = 0; j < numButter + numOranges; j++) {
+			if (j < numOranges) {
+				if (CheckCollision(game.car.position[0], game.car.position[2], q[0], q[1], game.orange[j].position[0], game.orange[j].position[2], 2, 2)) {
+					printf("COLISAO_ORANGE\n");
+					game.finishGame(false);
+				}
+			}
 		}
-		//printf("\n\n");		
-		//printf("Directional light = { %.1f, %.1f, %.1f, %.1f}", directionalLight[0], directionalLight[1], directionalLight[2], directionalLight[3]);
-		
-		multMatrixPoint(VIEW, directionalLight, res2);   //lightPos definido em World Coord so is converted to eye space
-		//printf("WORLD COORDS DIRECTIONAL light = { %.1f, %.1f, %.1f, %.1f}\n", res2[0], res2[1], res2[2], res2[3]);
-		glUniform4fv(lDir_uniformId, 1, res2);
-		
-		//printf("spotlight direction = { %.1f, %.1f, %.1f, %.1f}\n", game.car.spotlights[0]->dir[0], game.car.spotlights[0]->dir[1], game.car.spotlights[0]->dir[2], game.car.spotlights[0]->dir[3]);
-		//printf("spotlight position = { %.1f, %.1f, %.1f, %.1f}\n", game.car.spotlights[0]->pos[0], game.car.spotlights[0]->pos[1], game.car.spotlights[0]->pos[2], game.car.spotlights[0]->pos[3]);
-		//printf("spotlight cut angle = { %.10f }\n", game.car.spotlights[0]->ang);
-		float res3[4];
-
-	
-		multMatrixPoint(VIEW, game.car.spotlights[0]->dir, res3);
-		//printf("spotlight 0 dir = { %.1f, %.1f, %.1f, %.1f}\n", res2[0], res2[1], res2[2], res2[3]);
-		glUniform4fv(slDir_uniformId[0], 1, res3);
-
-
-		float res4[4];
-
-		multMatrixPoint(VIEW, game.car.spotlights[1]->dir, res4);
-		//printf("spotlight dir= { %.1f, %.1f, %.1f, %.1f}\n", game.car.spotlights[1]->dir[0], game.car.spotlights[1]->dir[1], game.car.spotlights[1]->dir[2], game.car.spotlights[1]->dir[3]);
-		//printf("spotlight dir res = { %.1f, %.1f, %.1f, %.1f}\n", res2[0], res2[1], res2[2], res2[3]);
-		glUniform4fv(slDir_uniformId[1], 1, res4);
-
-		float res5[4];
-
-
-		multMatrixPoint(VIEW, game.car.spotlights[0]->pos, res5);
-		glUniform4fv(slPos_uniformId[0], 1, res5);
-
-			float res6[4];
-
-		multMatrixPoint(VIEW, game.car.spotlights[1]->pos, res6);
-		glUniform4fv(slPos_uniformId[1], 1, res6);
-	
-
-		glUniform1f(slCutOffAngle_uniformId, game.car.spotlights[0]->ang);
-
-
-	glActiveTexture(GL_TEXTURE0);
-	glBindTexture(GL_TEXTURE_2D, TextureArray[0]);
-
-	glActiveTexture(GL_TEXTURE1);
-	glBindTexture(GL_TEXTURE_2D, TextureArray[1]);
-
-	glActiveTexture(GL_TEXTURE2);
-	glBindTexture(GL_TEXTURE_2D, TextureArray[2]);
-
-
-	//Indicar aos tres samplers do GLSL quais os Texture Units a serem usados
-	glUniform1i(tex_loc, 0);
-	glUniform1i(tex_loc1, 1);
-	glUniform1i(tex_loc2, 2);
-
-	float* p = getCarCenter();
-	float* q = getCarSize();
-	for (int j = 0; j < numButter + numOranges; j++) {
-		if (j < numOranges) {
-			if (CheckCollision(game.car.position[0], game.car.position[2], q[0], q[1], game.orange[j].position[0], game.orange[j].position[2], 2, 2)) {
-				printf("COLISAO_ORANGE\n");
-				game.finishGame(false); 
-			}	
+		if (!game.car.isOnTable()) {
+			game.finishGame(false);
 		}
-	}
-	if (!game.car.isOnTable()) {
-		game.finishGame(false);
-	}
 		game.checkFinish(q, p);
 		game.colisionButterCheerio(q, p);
-		int objId=0; //id of the object mesh - to be used as index of mesh: Mymeshes[objID] means the current mesh
-		for (int i = 0 ; i < numObjects; ++i) {
-	//		for (int j = 0; j < 2; ++j) {
+		int objId = 0; //id of the object mesh - to be used as index of mesh: Mymeshes[objID] means the current mesh
+		for (int i = 0; i < numObjects; ++i) {
+			//		for (int j = 0; j < 2; ++j) {
 
-				// send the material
-				loc = glGetUniformLocation(shader.getProgramIndex(), "mat.ambient");
-				glUniform4fv(loc, 1, myMeshes[objId].mat.ambient);
-				loc = glGetUniformLocation(shader.getProgramIndex(), "mat.diffuse");
-				glUniform4fv(loc, 1, myMeshes[objId].mat.diffuse);
-				loc = glGetUniformLocation(shader.getProgramIndex(), "mat.specular");
-				glUniform4fv(loc, 1, myMeshes[objId].mat.specular);
-				loc = glGetUniformLocation(shader.getProgramIndex(), "mat.shininess");
-				glUniform1f(loc, myMeshes[objId].mat.shininess);
-				pushMatrix(MODEL);
-			
-				// TODO THIS IS SHIT I WANT THIS WHEN DEFINING THE VO in the init() func
-				// Values correspond to 0,0 on the table coords = wc
-				float torusY = 1.0f; //z in world coords
-				float carBodyZ = 1.5f;
-				float carBodyX = 3.0f;
-				float jointCarGap = 0.5f;
-			
-				//game.car.move();
-				float* position = game.car.position;
+						// send the material
+			loc = glGetUniformLocation(shader.getProgramIndex(), "mat.ambient");
+			glUniform4fv(loc, 1, myMeshes[objId].mat.ambient);
+			loc = glGetUniformLocation(shader.getProgramIndex(), "mat.diffuse");
+			glUniform4fv(loc, 1, myMeshes[objId].mat.diffuse);
+			loc = glGetUniformLocation(shader.getProgramIndex(), "mat.specular");
+			glUniform4fv(loc, 1, myMeshes[objId].mat.specular);
+			loc = glGetUniformLocation(shader.getProgramIndex(), "mat.shininess");
+			glUniform1f(loc, myMeshes[objId].mat.shininess);
+			pushMatrix(MODEL);
 
-				float p;
-				float q;
-			
-				switch (objId) {
-				case 0:
-					//table
-					translate(MODEL, 0.0f, 0.0f, 0.0f);
-					scale(MODEL, tableX, tableY, tableZ);
+			// TODO THIS IS SHIT I WANT THIS WHEN DEFINING THE VO in the init() func
+			// Values correspond to 0,0 on the table coords = wc
+			float torusY = 1.0f; //z in world coords
+			float carBodyZ = 1.5f;
+			float carBodyX = 3.0f;
+			float jointCarGap = 0.5f;
 
-					break;
-				case 1:
-				case 2:
-				case 3:
-				case 4:
-				case 5:
-					//orange
-					game.orange[objId - 1].renderOrange();
-					break;
-				case 6:
-					//car wheel torus RIGHT TOP
-					translate(MODEL, position[0] + (carBodyZ)*sin(DegToRad(game.car.directionAngle)) + (carBodyX - jointCarGap) * cos(DegToRad(game.car.directionAngle)), position[1] + torusY, position[2] + carBodyZ * cos(DegToRad(game.car.directionAngle)) - (carBodyX - jointCarGap) * sin(DegToRad(game.car.directionAngle)));
-					rotate(MODEL, game.car.directionAngle, 0.0f, 1.0f, 0.0f);
-					rotate(MODEL, 90.0f, 1.0f, 0.0f, 0.0f);
+			//game.car.move();
+			float* position = game.car.position;
 
-					break;
-				case 7:
-					//car wheel torus LEFT TOP
-					translate(MODEL, position[0] + (carBodyX - jointCarGap) * cos(DegToRad(game.car.directionAngle)), position[1] + torusY, position[2] - (carBodyX - jointCarGap) * sin(DegToRad(game.car.directionAngle)));
-					rotate(MODEL, game.car.directionAngle, 0.0f, 1.0f, 0.0f);
-					rotate(MODEL, 90.0f, 1.0f, 0.0f, 0.0f);
+			float p;
+			float q;
 
-					break;
+			switch (objId) {
+			case 0:
+				//table
+				translate(MODEL, 0.0f, 0.0f, 0.0f);
+				scale(MODEL, tableX, tableY, tableZ);
 
-				case 8:
-					//car wheel torus RIGHT BOTTOM
-				
-					translate(MODEL, position[0] + carBodyZ * sin(DegToRad(game.car.directionAngle)) + (jointCarGap * cos(DegToRad(game.car.directionAngle))), position[1] + torusY, position[2] + (carBodyZ* cos(game.car.directionAngle * 3.14159265358979323846f / 180)) - (jointCarGap * sin(game.car.directionAngle * 3.14159265358979323846f / 180)));
-					rotate(MODEL, game.car.directionAngle, 0.0f, 1.0f, 0.0f);
-					rotate(MODEL, 90.0f, 1.0f, 0.0f, 0.0f);
+				break;
+			case 1:
+			case 2:
+			case 3:
+			case 4:
+			case 5:
+				//orange
+				game.orange[objId - 1].renderOrange();
+				break;
+			case 6:
+				//car wheel torus RIGHT TOP
+				translate(MODEL, position[0] + (carBodyZ)*sin(DegToRad(game.car.directionAngle)) + (carBodyX - jointCarGap) * cos(DegToRad(game.car.directionAngle)), position[1] + torusY, position[2] + carBodyZ * cos(DegToRad(game.car.directionAngle)) - (carBodyX - jointCarGap) * sin(DegToRad(game.car.directionAngle)));
+				rotate(MODEL, game.car.directionAngle, 0.0f, 1.0f, 0.0f);
+				rotate(MODEL, 90.0f, 1.0f, 0.0f, 0.0f);
 
-					break;
-				case 9:
-					//car wheel torus LEFT BOTTOM
+				break;
+			case 7:
+				//car wheel torus LEFT TOP
+				translate(MODEL, position[0] + (carBodyX - jointCarGap) * cos(DegToRad(game.car.directionAngle)), position[1] + torusY, position[2] - (carBodyX - jointCarGap) * sin(DegToRad(game.car.directionAngle)));
+				rotate(MODEL, game.car.directionAngle, 0.0f, 1.0f, 0.0f);
+				rotate(MODEL, 90.0f, 1.0f, 0.0f, 0.0f);
 
-					translate(MODEL, position[0] + jointCarGap * cos(DegToRad(game.car.directionAngle)), position[1] + torusY, position[2] - jointCarGap * sin(DegToRad(game.car.directionAngle)));
-					rotate(MODEL, game.car.directionAngle, 0.0f, 1.0f, 0.0f);
-					rotate(MODEL, 90.0f, 1.0f, 0.0f, 0.0f);
-					break;
-				case 10:
-					//car body
-					translate(MODEL, position[0], position[1] + torusY - 0.2f, position[2]);
-					rotate(MODEL, game.car.directionAngle, 0.0f, 1.0f, 0.0f);
-					scale(MODEL, carBodyX, 0.5, carBodyZ);
-					break;
-			
-				case 11:
-					game.renderFinishLine();
-					break;
-				};
+				break;
 
-			
-				// send matrices to OGL
-				computeDerivedMatrix(PROJ_VIEW_MODEL);
-				glUniformMatrix4fv(vm_uniformId, 1, GL_FALSE, mCompMatrix[VIEW_MODEL]);
-				glUniformMatrix4fv(pvm_uniformId, 1, GL_FALSE, mCompMatrix[PROJ_VIEW_MODEL]);
-				computeNormalMatrix3x3();
-				glUniformMatrix3fv(normal_uniformId, 1, GL_FALSE, mNormal3x3);
+			case 8:
+				//car wheel torus RIGHT BOTTOM
+
+				translate(MODEL, position[0] + carBodyZ * sin(DegToRad(game.car.directionAngle)) + (jointCarGap * cos(DegToRad(game.car.directionAngle))), position[1] + torusY, position[2] + (carBodyZ * cos(game.car.directionAngle * 3.14159265358979323846f / 180)) - (jointCarGap * sin(game.car.directionAngle * 3.14159265358979323846f / 180)));
+				rotate(MODEL, game.car.directionAngle, 0.0f, 1.0f, 0.0f);
+				rotate(MODEL, 90.0f, 1.0f, 0.0f, 0.0f);
+
+				break;
+			case 9:
+				//car wheel torus LEFT BOTTOM
+
+				translate(MODEL, position[0] + jointCarGap * cos(DegToRad(game.car.directionAngle)), position[1] + torusY, position[2] - jointCarGap * sin(DegToRad(game.car.directionAngle)));
+				rotate(MODEL, game.car.directionAngle, 0.0f, 1.0f, 0.0f);
+				rotate(MODEL, 90.0f, 1.0f, 0.0f, 0.0f);
+				break;
+			case 10:
+				//car body
+				translate(MODEL, position[0], position[1] + torusY - 0.2f, position[2]);
+				rotate(MODEL, game.car.directionAngle, 0.0f, 1.0f, 0.0f);
+				scale(MODEL, carBodyX, 0.5, carBodyZ);
+				break;
+
+			case 11:
+				game.renderFinishLine();
+				break;
+			};
+
+
+			// send matrices to OGL
+			computeDerivedMatrix(PROJ_VIEW_MODEL);
+			glUniformMatrix4fv(vm_uniformId, 1, GL_FALSE, mCompMatrix[VIEW_MODEL]);
+			glUniformMatrix4fv(pvm_uniformId, 1, GL_FALSE, mCompMatrix[PROJ_VIEW_MODEL]);
+			computeNormalMatrix3x3();
+			glUniformMatrix3fv(normal_uniformId, 1, GL_FALSE, mNormal3x3);
 
 			// Render mesh
 			if (objId == 0) glUniform1i(texMode_uniformId, 0);
@@ -1048,16 +1049,16 @@ void renderScene(void) {
 			else glUniform1i(texMode_uniformId, 3);
 
 			glBindVertexArray(myMeshes[objId].vao);
-			
-				if (!shader.isProgramValid()) {
-					printf("Program Not Valid!\n");
-					exit(1);	
-				}
-				glDrawElements(myMeshes[objId].type, myMeshes[objId].numIndexes, GL_UNSIGNED_INT, 0);
-				glBindVertexArray(0);
 
-				popMatrix(MODEL);
-				objId++;
+			if (!shader.isProgramValid()) {
+				printf("Program Not Valid!\n");
+				exit(1);
+			}
+			glDrawElements(myMeshes[objId].type, myMeshes[objId].numIndexes, GL_UNSIGNED_INT, 0);
+			glBindVertexArray(0);
+
+			popMatrix(MODEL);
+			objId++;
 			//}
 		}
 
@@ -1170,10 +1171,10 @@ void renderScene(void) {
 		int iteCheerio = 0;
 		for (int j = 0; j < mapRows; j++) {
 			for (int k = 0; k < mapCols; k++) {
-				if (mapRoad[j][k] !=2) {
+				if (mapRoad[j][k] != 2) {
 					continue;
 				}
-				
+
 				//printf("numR:  %d", numRoads);
 				// send the material
 				loc = glGetUniformLocation(shader.getProgramIndex(), "mat.ambient");
@@ -1201,7 +1202,7 @@ void renderScene(void) {
 					scale(MODEL, roadWidth - 2, 1.5, roadWidth - 2);
 					iteCheerio++;
 				}
-				
+
 				// send matrices to OGL
 				computeDerivedMatrix(PROJ_VIEW_MODEL);
 				glUniformMatrix4fv(vm_uniformId, 1, GL_FALSE, mCompMatrix[VIEW_MODEL]);
@@ -1225,11 +1226,11 @@ void renderScene(void) {
 			}
 		}
 	}
-	
+
 	//Render text (bitmap fonts) in screen coordinates. So use ortoghonal projection with viewport coordinates.
 	glDisable(GL_DEPTH_TEST);
 	//the glyph contains background colors and non-transparent for the actual character pixels. So we use the blending
-	glEnable(GL_BLEND);  
+	glEnable(GL_BLEND);
 	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 	int m_viewport[4];
 	glGetIntegerv(GL_VIEWPORT, m_viewport);
@@ -1279,85 +1280,85 @@ void renderScene(void) {
 
 void processKeys(unsigned char key, int xx, int yy)
 {
-	switch(key) {
-		case 27:
-			glutLeaveMainLoop();
-			break;
-		case 'c': // POINTING LIGHTS --> LUZES PARA ILUMINAR A MESA
-			//printf("Camera Spherical Coordinates (%f, %f, %f)\n", alpha, beta, r);
-			if (isPointLightsOn) {
-				for (int i = 0; i < 6; i++) {
-					lightPos[i][3] = 0.0f;
-				}
-				isPointLightsOn = false;
+	switch (key) {
+	case 27:
+		glutLeaveMainLoop();
+		break;
+	case 'c': // POINTING LIGHTS --> LUZES PARA ILUMINAR A MESA
+		//printf("Camera Spherical Coordinates (%f, %f, %f)\n", alpha, beta, r);
+		if (isPointLightsOn) {
+			for (int i = 0; i < 6; i++) {
+				lightPos[i][3] = 0.0f;
 			}
-			else {
-				for (int i = 0; i < 6; i++) {
-					lightPos[i][3] = 1.0f;
-				}
-				isPointLightsOn = true;
+			isPointLightsOn = false;
+		}
+		else {
+			for (int i = 0; i < 6; i++) {
+				lightPos[i][3] = 1.0f;
 			}
-			break;
-		case 'm': glEnable(GL_MULTISAMPLE); break;
-		case 'n': /*glDisable(GL_MULTISAMPLE);*/
-			// DIRECTIONAL LIGHT --> ILUMINACAO GERAL TIPO DIA E NOITE
-			if (isDirectionalLightOn) {
-				directionalLight = nolightDir;
-				isDirectionalLightOn = false;
+			isPointLightsOn = true;
+		}
+		break;
+	case 'm': glEnable(GL_MULTISAMPLE); break;
+	case 'n': /*glDisable(GL_MULTISAMPLE);*/
+		// DIRECTIONAL LIGHT --> ILUMINACAO GERAL TIPO DIA E NOITE
+		if (isDirectionalLightOn) {
+			directionalLight = nolightDir;
+			isDirectionalLightOn = false;
+		}
+		else {
+			directionalLight = lightDir;
+			isDirectionalLightOn = true;
+		}
+		break;
+	case 'h':
+		// SPOTLIGHTS --> ILUMINACAO COMO SE FOSSE AS LUZES FRONTEIRAS DO CARRO
+		if (isSpotLightsOn) {
+			for (int i = 0; i < 2; i++) {
+				game.car.spotlights[i]->pos[3] = 0.0f;
 			}
-			else {
-				directionalLight = lightDir;
-				isDirectionalLightOn = true;
+			isSpotLightsOn = false;
+		}
+		else {
+			for (int i = 0; i < 2; i++) {
+				game.car.spotlights[i]->pos[3] = 1.0f;
 			}
-			break;
-		case 'h':
-			// SPOTLIGHTS --> ILUMINACAO COMO SE FOSSE AS LUZES FRONTEIRAS DO CARRO
-			if (isSpotLightsOn) {
-				for (int i = 0; i < 2; i++) {
-					game.car.spotlights[i]->pos[3] = 0.0f;
-				}
-				isSpotLightsOn = false;
-			}
-			else {
-				for (int i = 0; i < 2; i++) {
-					game.car.spotlights[i]->pos[3] = 1.0f;
-				}
-				isSpotLightsOn = true;
-			}
-			break;
-		case 'l':
-			// SPOTLIGHTS --> ILUMINACAO COMO SE FOSSE AS LUZES FRONTEIRAS DO CARRO
-			if (game.isTextureSpOn) {	
-				game.textureSl.pos[3] = 0.0f;
-				game.isTextureSpOn = false;
-			}
-			else {
-				game.textureSl.pos[3]= 1.0f;
-				game.isTextureSpOn = true;
-			}
-			break;
-		case '1': 
-			alpha = 0.0f;
-			beta = 90.0f;
-			cout << "tecla carregada = " << key;
-			cam1();
-			break;
-		case '2': 
-			alpha = 0.0f;
-			beta = 90.0f;
-			cout << "tecla carregada = " << key;
-			cam2();
-			break;
-		case '3': 
-			cout << "tecla carregada = " << key;
-			//ESTA ATRIBUICAO DE VALORES E FEITA AQUI POR CAUSA TO MOVIMENTO DE CAMERA ATRAVES DO RATO
-			alpha = -90.0f, beta = 0.0f;
-			cam3();
+			isSpotLightsOn = true;
+		}
+		break;
+	case 'l':
+		// SPOTLIGHTS --> ILUMINACAO COMO SE FOSSE AS LUZES FRONTEIRAS DO CARRO
+		if (game.isTextureSpOn) {
+			game.textureSl.pos[3] = 0.0f;
+			game.isTextureSpOn = false;
+		}
+		else {
+			game.textureSl.pos[3] = 1.0f;
+			game.isTextureSpOn = true;
+		}
+		break;
+	case '1':
+		alpha = 0.0f;
+		beta = 90.0f;
+		cout << "tecla carregada = " << key;
+		cam1();
+		break;
+	case '2':
+		alpha = 0.0f;
+		beta = 90.0f;
+		cout << "tecla carregada = " << key;
+		cam2();
+		break;
+	case '3':
+		cout << "tecla carregada = " << key;
+		//ESTA ATRIBUICAO DE VALORES E FEITA AQUI POR CAUSA TO MOVIMENTO DE CAMERA ATRAVES DO RATO
+		alpha = -90.0f, beta = 0.0f;
+		cam3();
 
-			break;
-		default:
-			cout << "tecla carregada = " << key;
-			break;
+		break;
+	default:
+		cout << "tecla carregada = " << key;
+		break;
 	}
 }
 
@@ -1386,7 +1387,7 @@ void keyOperations() {
 				game.car.isForward = true;
 			}
 		}
-		else{
+		else {
 			game.car.velocity += 0.00008;
 			if (game.car.velocity > game.car.maxVelocity) {
 				game.car.velocity = game.car.maxVelocity;
@@ -1416,7 +1417,7 @@ void keyOperations() {
 		game.car.move();
 	}
 
-	
+
 	if (keyStates['p'] && game.car.velocity > 0) {
 		//move left
 		if (!keyStates['q'] && !keyStates['a']) {
@@ -1515,6 +1516,15 @@ void keyUp(unsigned char key, int x, int y) {
 			isSpotLightsOn = true;
 		}
 		break;
+	case 'f':
+		// FOG
+		if (isFogOn) {
+			isFogOn = false;
+		}
+		else {
+			isFogOn = true;
+		}
+		break;
 	case '1':
 		alpha = 0.0f;
 		beta = 90.0f;
@@ -1557,7 +1567,7 @@ void keyUp(unsigned char key, int x, int y) {
 void processMouseButtons(int button, int state, int xx, int yy)
 {
 	// start tracking the mouse
-	if (state == GLUT_DOWN)  {
+	if (state == GLUT_DOWN) {
 		startX = xx;
 		startY = yy;
 		if (button == GLUT_LEFT_BUTTON)
@@ -1573,10 +1583,11 @@ void processMouseButtons(int button, int state, int xx, int yy)
 			beta += (yy - startY);
 		}
 		else if (tracking == 2) {
-	/*		r += (yy - startY) * 0.01f;
-			if (r < 0.1f)
-				r = 0.1f;
-	*/	}
+			/*		r += (yy - startY) * 0.01f;
+					if (r < 0.1f)
+						r = 0.1f;
+			*/
+		}
 		tracking = 0;
 	}
 }
@@ -1591,8 +1602,8 @@ void processMouseMotion(int xx, int yy)
 	float betaAux = 0;
 	float rAux;
 	float slowDown = 0.2f;
-	deltaX =  (- xx + startX) * slowDown;
-	deltaY =  (  yy - startY) * slowDown;
+	deltaX = (-xx + startX) * slowDown;
+	deltaY = (yy - startY) * slowDown;
 
 	// left mouse button: move camera
 	if (tracking == 1) {
@@ -1616,7 +1627,7 @@ void processMouseMotion(int xx, int yy)
 		if (rAux < 0.1f)
 			rAux = 0.1f;
 	}
-	
+
 	switch (cam) {
 	case 1:
 		alpha = alphaAux;
@@ -1653,10 +1664,10 @@ void mouseWheel(int wheel, int direction, int x, int y) {
 
 	camX = r * sin(alpha * 3.14f / 180.0f) * cos(beta * 3.14f / 180.0f);
 	camZ = r * cos(alpha * 3.14f / 180.0f) * cos(beta * 3.14f / 180.0f);
-	camY = r *   						     sin(beta * 3.14f / 180.0f);
+	camY = r * sin(beta * 3.14f / 180.0f);
 
-//  uncomment this if not using an idle or refresh func
-//	glutPostRedisplay();
+	//  uncomment this if not using an idle or refresh func
+	//	glutPostRedisplay();
 }
 
 // --------------------------------------------------------
@@ -1674,7 +1685,7 @@ GLuint setupShaders() {
 	shader.loadShader(VSShaderLib::FRAGMENT_SHADER, "shaders/pointlight.frag");
 
 	// set semantics for the shader variables
-	glBindFragDataLocation(shader.getProgramIndex(), 0,"colorOut");
+	glBindFragDataLocation(shader.getProgramIndex(), 0, "colorOut");
 	glBindAttribLocation(shader.getProgramIndex(), VERTEX_COORD_ATTRIB, "position");
 	glBindAttribLocation(shader.getProgramIndex(), NORMAL_ATTRIB, "normal");
 	//glBindAttribLocation(shader.getProgramIndex(), TEXTURE_COORD_ATTRIB, "texCoord");
@@ -1693,9 +1704,9 @@ GLuint setupShaders() {
 	lPos_uniformId[3] = glGetUniformLocation(shader.getProgramIndex(), "l_pos[3]");
 	lPos_uniformId[4] = glGetUniformLocation(shader.getProgramIndex(), "l_pos[4]");
 	lPos_uniformId[5] = glGetUniformLocation(shader.getProgramIndex(), "l_pos[5]");
-	
+
 	lDir_uniformId = glGetUniformLocation(shader.getProgramIndex(), "l_dir");
-	
+
 
 	slPos_uniformId[0] = glGetUniformLocation(shader.getProgramIndex(), "sl_pos[0]");
 	slPos_uniformId[1] = glGetUniformLocation(shader.getProgramIndex(), "sl_pos[1]");
@@ -1709,10 +1720,13 @@ GLuint setupShaders() {
 	slDirTexture_uniformId = glGetUniformLocation(shader.getProgramIndex(), "sl_dir_texture");
 	slCutOffAngleTexture_uniformId = glGetUniformLocation(shader.getProgramIndex(), "sl_cut_off_ang_texture");
 
+	is_fog_on_uniformId = glGetUniformLocation(shader.getProgramIndex(), "is_fog_on");
+	fog_maxdist_uniformId = glGetUniformLocation(shader.getProgramIndex(), "fog_maxdist");
+
 	tex_loc = glGetUniformLocation(shader.getProgramIndex(), "texmap");
 	tex_loc1 = glGetUniformLocation(shader.getProgramIndex(), "texmap1");
 	tex_loc2 = glGetUniformLocation(shader.getProgramIndex(), "texmap2");
-	
+
 	printf("InfoLog for Per Fragment Phong Lightning Shader\n%s\n\n", shader.getAllInfoLogs().c_str());
 
 	// Shader for bitmap Text
@@ -1722,7 +1736,7 @@ GLuint setupShaders() {
 
 	glLinkProgram(shaderText.getProgramIndex());
 	printf("InfoLog for Text Rendering Shader\n%s\n\n", shaderText.getAllInfoLogs().c_str());
-	
+
 	//// Shader for models
 	//shaderGlobal.init();
 	//shaderGlobal.loadShader(VSShaderLib::VERTEX_SHADER, "shaders/pointlight.vert");
@@ -1919,7 +1933,7 @@ void init()
 		myMeshes.push_back(amesh);
 		//numObjects++;
 	};
-	
+
 	// Cheerios
 	for (int i = 0; i < numCheerios; i++) {
 
@@ -1942,10 +1956,10 @@ void init()
 				game.cheerio[iteCheerio].position[2] = roadWidth * j + roadWidth / 2;
 				iteCheerio++;
 			}
-			
+
 		}
 	}
-	
+
 	// some GL settings
 	//glEnable(GL_DEPTH_TEST);
 	glEnable(GL_CULL_FACE);
@@ -1961,22 +1975,22 @@ void init()
 //
 
 
-int main(int argc, char **argv) {
+int main(int argc, char** argv) {
 
-//  GLUT initialization
+	//  GLUT initialization
 	glutInit(&argc, argv);
-	glutInitDisplayMode(GLUT_DEPTH|GLUT_DOUBLE|GLUT_RGBA|GLUT_MULTISAMPLE);
+	glutInitDisplayMode(GLUT_DEPTH | GLUT_DOUBLE | GLUT_RGBA | GLUT_MULTISAMPLE);
 
-	glutInitContextVersion (4, 3);
-	glutInitContextProfile (GLUT_CORE_PROFILE );
+	glutInitContextVersion(4, 3);
+	glutInitContextProfile(GLUT_CORE_PROFILE);
 	glutInitContextFlags(GLUT_FORWARD_COMPATIBLE | GLUT_DEBUG);
 
-	glutInitWindowPosition(100,100);
+	glutInitWindowPosition(100, 100);
 	glutInitWindowSize(WinX, WinY);
 	WindowHandle = glutCreateWindow(CAPTION);
 
 
-//  Callback Registration
+	//  Callback Registration
 	glutDisplayFunc(renderScene);
 	glutReshapeFunc(changeSize);
 
@@ -1992,20 +2006,20 @@ int main(int argc, char **argv) {
 	glutKeyboardUpFunc(keyUp);
 	glutMouseFunc(processMouseButtons);
 	glutMotionFunc(processMouseMotion);
-    //glutMouseWheelFunc ( mouseWheel ) ;
-	
+	//glutMouseWheelFunc ( mouseWheel ) ;
+
 
 //	return from main loop
 	glutSetOption(GLUT_ACTION_ON_WINDOW_CLOSE, GLUT_ACTION_GLUTMAINLOOP_RETURNS);
 
-//	Init GLEW
+	//	Init GLEW
 	glewExperimental = GL_TRUE;
 	glewInit();
 
-	printf ("Vendor: %s\n", glGetString (GL_VENDOR));
-	printf ("Renderer: %s\n", glGetString (GL_RENDERER));
-	printf ("Version: %s\n", glGetString (GL_VERSION));
-	printf ("GLSL: %s\n", glGetString (GL_SHADING_LANGUAGE_VERSION));
+	printf("Vendor: %s\n", glGetString(GL_VENDOR));
+	printf("Renderer: %s\n", glGetString(GL_RENDERER));
+	printf("Version: %s\n", glGetString(GL_VERSION));
+	printf("GLSL: %s\n", glGetString(GL_SHADING_LANGUAGE_VERSION));
 
 	if (!setupShaders())
 		return(1);

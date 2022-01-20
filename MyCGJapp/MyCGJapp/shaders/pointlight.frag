@@ -25,6 +25,9 @@ uniform float sl_cut_off_ang;
 uniform vec4 sl_dir_texture;
 uniform float sl_cut_off_ang_texture;
 
+uniform int is_fog_on;
+uniform float fog_maxdist;
+
 in Data {
 	vec3 normal;
 	vec3 eye;
@@ -35,6 +38,22 @@ in Data {
 	flat int lights[3];
 	vec2 tex_coord;
 } DataIn;
+
+vec4 calcFog(vec3 position){
+	//float fog_maxdist = 100.0;
+	float fog_mindist = 0.1;
+	vec4  fog_colour = vec4(0.4, 0.4, 0.4, 1.0);
+
+	vec4 color  = colorOut.xyzw;
+	
+	// Calculate fog
+	float dist = length(position.xyz);
+	float fog_factor = (fog_maxdist - dist) /
+					  (fog_maxdist - fog_mindist);
+	fog_factor = clamp(fog_factor, 0.0, 1.0);
+
+	return mix(fog_colour, color, fog_factor);
+}
 
 //Dir or Point
 vec2 calcLight(vec3 lightDir, vec3 n, vec3 e){
@@ -121,9 +140,13 @@ void main() {
 	else{
 		if (intensity_spec[0] > 0){
 			colorOut = max(intensity_spec[0]*mat.diffuse + intensity_spec[1], mat.ambient) + vec4(0.1, 0.1, 0.1, 0);
-			}
 		}
 	}
+
+	if(is_fog_on == 1){
+		colorOut = calcFog(DataIn.eye);
+	}
+}
 
 
 
