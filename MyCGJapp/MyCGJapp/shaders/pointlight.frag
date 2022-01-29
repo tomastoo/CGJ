@@ -16,6 +16,8 @@ uniform Materials mat;
 uniform sampler2D texmap;
 uniform sampler2D texmap1;
 uniform sampler2D texmap2;
+//uniform sampler2D texmap3;
+uniform sampler2D texmap4;
 uniform int texMode;
 
 uniform vec4 sl_dir[2];
@@ -137,6 +139,12 @@ void main() {
 		colorOut = max(intensity_spec[0]*texel + intensity_spec[1], 0.07*texel)+ vec4(0.1, 0.1, 0.1, 0);
 		}
 	}
+	else if (texMode == 4) // modulate diffuse color with texel1 color
+	{
+		texel = texture(texmap4, DataIn.tex_coord);  // texel from finishline.jpg
+		colorOut = texel + vec4(0.1, 0.1, 0.1, 0);
+	}
+
 	else{
 		if (intensity_spec[0] > 0){
 			colorOut = max(intensity_spec[0]*mat.diffuse + intensity_spec[1], mat.ambient) + vec4(0.1, 0.1, 0.1, 0);
