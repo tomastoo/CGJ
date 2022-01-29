@@ -1114,6 +1114,7 @@ void renderStencil() {
 
 // 0 - paused
 // 1 - gameOver
+// 2 - you win
 void renderOffGameMessage(int messageCase) {
     GLint loc;
     int m_viewport[4];
@@ -1132,16 +1133,16 @@ void renderOffGameMessage(int messageCase) {
 
     switch (messageCase) {
     case(0):
-        RenderText(shaderText, "PAUSED", m_viewport[2]/2 -100, m_viewport[3]/2 - 30, 1.5f, 0.5f, 0.8f, 0.2f);
+        RenderText(shaderText, "PAUSED", m_viewport[2]/2 -133, m_viewport[3]/2 - 15, 1.5f, 0.5f, 0.8f, 0.2f);
         break;
     case(1):
-        RenderText(shaderText, "GAME OVER", m_viewport[2] / 2 - 100, m_viewport[3] / 2 - 30, 1.5f, 0.5f, 0.8f, 0.2f);
+        RenderText(shaderText, "GAME OVER", m_viewport[2] / 2 - 201.5, m_viewport[3] / 2 - 15, 1.5f, 0.5f, 0.8f, 0.2f);
         break;
     case(2):
-        RenderText(shaderText, "YOU WIN", m_viewport[2] / 2 - 100, m_viewport[3] / 2 - 30, 1.5f, 0.5f, 0.8f, 0.2f);
+        RenderText(shaderText, "YOU WIN", m_viewport[2] / 2 - 151, m_viewport[3] / 2 - 15, 1.5f, 0.5f, 0.8f, 0.2f);
         break;
     }
-    printf("1 = %d, 2 = %d, 3 = %d, 4 = %d\n", m_viewport[0], m_viewport[1], m_viewport[2], m_viewport[3]);
+   // printf("1 = %d, 2 = %d, 3 = %d, 4 = %d\n", m_viewport[0], m_viewport[1], m_viewport[2], m_viewport[3]);
 
     popMatrix(PROJECTION);
     popMatrix(MODEL);
@@ -1577,7 +1578,6 @@ void renderScene(void) {
       renderOffGameMessage(1);
   }
 
-  //renderOffGameMessage();
   glEnable(GL_DEPTH_TEST);
   glDisable(GL_BLEND);
 
@@ -1862,6 +1862,7 @@ void keyUp(unsigned char key, int x, int y) {
             game.points += 10;
             game.finishGame(false);
         }
+     break;
     case '1':
       alpha = 0.0f;
       beta = 90.0f;

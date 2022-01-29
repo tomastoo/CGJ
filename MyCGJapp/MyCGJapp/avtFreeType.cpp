@@ -137,6 +137,7 @@ void RenderText(VSShaderLib& shaderText, std::string text, float x, float y, flo
 
 		float w = ch.Size[0] * scale;
 		float h = ch.Size[1] * scale;
+		//printf("char witdth = %.3f\n", w);
 		// update VBO for each character
 		float vertices[6][4] = {
 			{ xpos,     ypos + h,   0.0f, 0.0f },
@@ -159,6 +160,8 @@ void RenderText(VSShaderLib& shaderText, std::string text, float x, float y, flo
 		// now advance cursors for next glyph (note that advance is number of 1/64 pixels)
 		x += (ch.Advance >> 6) * scale; // bitshift by 6 to get value in pixels (2^6 = 64 (divide amount of 1/64th pixels by 64 to get amount of pixels))
 	}
+	//printf("\n\n\n");
+
 	glBindVertexArray(0);
 	glBindTexture(GL_TEXTURE_2D, 0);
 }
