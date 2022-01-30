@@ -111,10 +111,10 @@ GLint slCutOffAngleTexture_uniformId;
 GLint is_fog_on_uniformId;
 GLint fog_maxdist_uniformId;
 
-GLint tex_loc, tex_loc1, tex_loc2, tex_loc3;
+GLint tex_loc, tex_loc1, tex_loc2, tex_loc3, tex_loc4;
 GLint texMode_uniformId;
 
-GLuint TextureArray[4];
+GLuint TextureArray[5];
 
 // Camera Position
 float camX, camY, camZ;
@@ -570,7 +570,7 @@ public:Butter butter[numButter];
 public:Spotlight textureSl;
 public:bool isTextureSpOn = false;
 public:Cheerio cheerio[141];
-public:float finishLineDimensions[3] = { roadWidth, 0.6, roadWidth };
+public:float finishLineDimensions[3] = { 2*roadWidth, 0.6, 2*roadWidth };
 public:float finishLinePos[3] = { tableX - finishLineDimensions[0], 0, tableZ - finishLineDimensions[2] };
 public:bool isFinished = false;
 public:bool win;
@@ -929,7 +929,7 @@ void renderFog() {
 }
 
 void renderTextures() {
-	float res1[4];
+	float res1[5];
 	multMatrixPoint(VIEW, game.textureSl.dir, res1);
 	//printf("spotlight 0 dir = { %.1f, %.1f, %.1f, %.1f}\n", res2[0], res2[1], res2[2], res2[3]);
 	glUniform4fv(slDirTexture_uniformId, 1, res1);
@@ -951,12 +951,16 @@ void renderTextures() {
 	glActiveTexture(GL_TEXTURE3);
 	glBindTexture(GL_TEXTURE_2D, TextureArray[3]);
 
+	glActiveTexture(GL_TEXTURE4);
+	glBindTexture(GL_TEXTURE_2D, TextureArray[4]);
+
 
 	//Indicar aos tres samplers do GLSL quais os Texture Units a serem usados
 	glUniform1i(tex_loc, 0);
 	glUniform1i(tex_loc1, 1);
 	glUniform1i(tex_loc2, 2);
 	glUniform1i(tex_loc3, 3);
+	glUniform1i(tex_loc4, 4);
 }
 
 void renderLights() {
@@ -987,7 +991,71 @@ void renderLights() {
 
 
 	glUniform1f(slCutOffAngle_uniformId, game.car.spotlights[0]->ang);
+
 }
+
+/*----------------------------------------------------------------
+True billboarding. With the spherical version the object will
+always face the camera. It requires more computational effort than
+the cylindrical billboard though. The parameters camX,camY, and camZ,
+are the target, i.e. a 3D point to which the object will point.
+----------------------------------------------------------------*/
+
+void l3dBillboardSphericalBegin(float* cam, float* worldPos) {
+
+	float lookAt[3] = { 0,0,1 }, objToCamProj[3], objToCam[3], upAux[3], angleCosine;
+
+	// objToCamProj is the vector in world coordinates from the local origin to the camera
+	// projected in the XZ plane
+	objToCamProj[0] = cam[0] - worldPos[0];
+	objToCamProj[1] = 0;
+	objToCamProj[2] = cam[2] - worldPos[2];
+
+	// normalize both vectors to get the cosine directly afterwards
+	normalize(objToCamProj);
+
+	// easy fix to determine wether the angle is negative or positive
+	// for positive angles upAux will be a vector pointing in the 
+	// positive y direction, otherwise upAux will point downwards
+	// effectively reversing the rotation.
+
+	crossProduct(lookAt, objToCamProj, upAux);
+
+	// compute the angle
+	angleCosine = dotProduct(lookAt, objToCamProj);
+
+	// perform the rotation. The if statement is used for stability reasons
+	// if the lookAt and v vectors are too close together then |aux| could
+	// be bigger than 1 due to lack of precision
+	if ((angleCosine < 0.99990) && (angleCosine > -0.9999))
+		rotate(MODEL, acos(angleCosine) * 180 / 3.14, upAux[0], upAux[1], upAux[2]);
+
+
+	// The second part tilts the object so that it faces the camera
+
+	// objToCam is the vector in world coordinates from the local origin to the camera
+	objToCam[0] = cam[0] - worldPos[0];
+	objToCam[1] = cam[1] - worldPos[1];
+	objToCam[2] = cam[2] - worldPos[2];
+
+	// Normalize to get the cosine afterwards
+	normalize(objToCam);
+
+	// Compute the angle between v and v2, i.e. compute the
+	// required angle for the lookup vector
+	angleCosine = dotProduct(objToCamProj, objToCam);
+
+
+	// Tilt the object. The test is done to prevent instability when objToCam and objToCamProj have a very small
+	// angle between them
+	if ((angleCosine < 0.99990) && (angleCosine > -0.9999))
+		if (objToCam[1] < 0)
+			rotate(MODEL, acos(angleCosine) * 180 / 3.14, 1, 0, 0);
+		else
+			rotate(MODEL, acos(angleCosine) * 180 / 3.14, -1, 0, 0);
+
+}
+
 // ------------------------------------------------ ------------
 //
 // Render stufff
@@ -1000,6 +1068,8 @@ void renderScene(void) {
 	keyOperations();
 
 	float particle_color[4];
+	float pos[3];
+	float camh[3] = { camX,camY,camZ };
 
 	FrameCount++;
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
@@ -1036,10 +1106,8 @@ void renderScene(void) {
 		game.checkFinish(q, p);
 		game.colisionButterCheerio(q, p);
 		int objId = 0; //id of the object mesh - to be used as index of mesh: Mymeshes[objID] means the current mesh
-		for (int i = 0; i < numObjects; ++i) {
-			//		for (int j = 0; j < 2; ++j) {
+		for (int i = 0; i < numObjects; ++i) {                      // send the material
 
-						// send the material
 			loc = glGetUniformLocation(shader.getProgramIndex(), "mat.ambient");
 			glUniform4fv(loc, 1, myMeshes[objId].mat.ambient);
 			loc = glGetUniformLocation(shader.getProgramIndex(), "mat.diffuse");
@@ -1108,6 +1176,7 @@ void renderScene(void) {
 				rotate(MODEL, game.car.directionAngle, 0.0f, 1.0f, 0.0f);
 				rotate(MODEL, 90.0f, 1.0f, 0.0f, 0.0f);
 				break;
+
 			case 10:
 				//car body
 				translate(MODEL, position[0], position[1] + torusY - 0.2f, position[2]);
@@ -1117,6 +1186,40 @@ void renderScene(void) {
 
 			case 11:
 				game.renderFinishLine();
+				break;
+
+			case 12:
+
+				glEnable(GL_BLEND);
+				glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+
+				glUniform1i(texMode_uniformId, 4); // draw textured quads
+
+				pushMatrix(MODEL);
+				pos[0] = 40.0; pos[1] = 4.0; pos[2] = 45.0;
+
+				translate(MODEL, pos[0], pos[1], pos[2]);
+
+				l3dBillboardSphericalBegin(camh, pos);
+
+				//diffuse and ambient color are not used in the tree quads
+				loc = glGetUniformLocation(shader.getProgramIndex(), "mat.specular");
+				glUniform4fv(loc, 1, myMeshes[objId].mat.specular);
+				loc = glGetUniformLocation(shader.getProgramIndex(), "mat.shininess");
+				glUniform1f(loc, myMeshes[objId].mat.shininess);
+
+				pushMatrix(MODEL);
+
+				computeDerivedMatrix(PROJ_VIEW_MODEL);
+
+				glUniformMatrix4fv(vm_uniformId, 1, GL_FALSE, mCompMatrix[VIEW_MODEL]);
+				glUniformMatrix4fv(pvm_uniformId, 1, GL_FALSE, mCompMatrix[PROJ_VIEW_MODEL]);
+				computeNormalMatrix3x3();
+				glUniformMatrix3fv(normal_uniformId, 1, GL_FALSE, mNormal3x3);
+				glBindVertexArray(myMeshes[objId].vao);
+				glDrawElements(myMeshes[objId].type, myMeshes[objId].numIndexes, GL_UNSIGNED_INT, 0);
+				popMatrix(MODEL);
+				glDisable(GL_BLEND);
 				break;
 			};
 
@@ -1131,7 +1234,8 @@ void renderScene(void) {
 			// Render mesh
 			if (objId == 0) glUniform1i(texMode_uniformId, 0);
 			else if (objId == 11) glUniform1i(texMode_uniformId, 2);
-			else glUniform1i(texMode_uniformId, 3);
+			else if (objId == 12) glUniform1i(texMode_uniformId, 4);
+			else glUniform1i(texMode_uniformId, 5);
 
 			glBindVertexArray(myMeshes[objId].vao);
 
@@ -1181,7 +1285,7 @@ void renderScene(void) {
 			glUniformMatrix3fv(normal_uniformId, 1, GL_FALSE, mNormal3x3);
 
 			// Render mesh
-			glUniform1i(texMode_uniformId, 3);
+			glUniform1i(texMode_uniformId, 5);
 			glBindVertexArray(myMeshes[objId].vao);
 
 			if (!shader.isProgramValid()) {
@@ -1271,13 +1375,6 @@ void renderScene(void) {
 				loc = glGetUniformLocation(shader.getProgramIndex(), "mat.shininess");
 				glUniform1f(loc, myMeshes[objId].mat.shininess);
 				pushMatrix(MODEL);
-
-				// TODO THIS IS SHIT I WANT THIS WHEN DEFINING THE VO in the init() func
-				// Values correspond to 0,0 on the table coords = wc
-				float torusY = 1.0f; //z in world coords
-				float carBodyX = 1.5f;
-				float carBodyY = 3.0f;
-				float jointCarGap = -0.5f;
 
 				game.car.move();
 				float* position = game.car.position;
@@ -1408,8 +1505,7 @@ void renderScene(void) {
 	if (game.isFinished) {
 		game.renderGameEnd();
 	}
-	//RenderText(shaderText, "This is a sample text", 25.0f, 25.0f, 1.0f, 0.5f, 0.8f, 0.2f);
-	//RenderText(shaderText, "CGJ Light and Text Rendering Demo", 440.0f, 570.0f, 0.5f, 0.3, 0.7f, 0.9f);
+
 	popMatrix(PROJECTION);
 	popMatrix(VIEW);
 	popMatrix(MODEL);
@@ -1884,6 +1980,7 @@ GLuint setupShaders() {
 	tex_loc1 = glGetUniformLocation(shader.getProgramIndex(), "texmap1");
 	tex_loc2 = glGetUniformLocation(shader.getProgramIndex(), "texmap2");
 	tex_loc3 = glGetUniformLocation(shader.getProgramIndex(), "texmap3");
+	tex_loc4 = glGetUniformLocation(shader.getProgramIndex(), "texmap4");
 
 	printf("InfoLog for Per Fragment Phong Lightning Shader\n%s\n\n", shader.getAllInfoLogs().c_str());
 
@@ -1950,14 +2047,17 @@ void init()
 	camZ = r * cos(alpha * 3.14f / 180.0f) * cos(beta * 3.14f / 180.0f);
 	camY = r * sin(beta * 3.14f / 180.0f);
 
-	glGenTextures(4, TextureArray);
+	glGenTextures(5, TextureArray);
 	Texture2D_Loader(TextureArray, "lightwood.tga", 0);
 	Texture2D_Loader(TextureArray, "road.jpg", 1);
 	Texture2D_Loader(TextureArray, "finishline.jpg", 2);
 	Texture2D_Loader(TextureArray, "particle.tga", 3);
+	Texture2D_Loader(TextureArray, "tree.tga", 4);
 
 
-	numRoads = CalcRoads();
+	numRoads = CalcRoads();  // 176
+	printf("%d\n", numCheerios); //141
+
 	//numCheerios = CalcCheerios();
 
 
@@ -2006,7 +2106,7 @@ void init()
 	//myMeshes.push_back(amesh);
 
 	// create geometry and VAO of the cube
-	// TABLE
+	// TABLE  id = 0
 	amesh = createCube();
 	memcpy(amesh.mat.ambient, amb, 4 * sizeof(float));
 	memcpy(amesh.mat.diffuse, diff, 4 * sizeof(float));
@@ -2026,7 +2126,7 @@ void init()
 
 
 	float amb2[] = { 1.0f, 0.647f, 0.0f, 1.0f };
-	// ORANGE
+	// ORANGE  id = 1 to 5
 	for (int i = 0; i < numOranges; i++) {
 		amesh = createSphere(1.0f, 20);
 		memcpy(amesh.mat.ambient, amb2, 4 * sizeof(float));
@@ -2044,6 +2144,7 @@ void init()
 	float diff2[] = { 0.0f, 0.0f, 0.0f, 1.0f };
 	float spec2[] = { 0.9f, 0.9f, 0.9f, 1.0f };
 	for (int i = 0; i < 4; i++) {
+		//id = 6 to 9
 		amesh = createTorus(0.1f, 0.5f, 20, 20);
 		memcpy(amesh.mat.ambient, amb3, 4 * sizeof(float));
 		memcpy(amesh.mat.diffuse, diff2, 4 * sizeof(float));
@@ -2055,6 +2156,8 @@ void init()
 		numObjects++;
 	}
 	float amb4[] = { 0.0f, 1.0f, 0.647f, 0.0f };
+
+	// id = 10
 	amesh = createCube();
 	memcpy(amesh.mat.ambient, amb4, 4 * sizeof(float));
 	memcpy(amesh.mat.diffuse, diff, 4 * sizeof(float));
@@ -2065,9 +2168,23 @@ void init()
 	myMeshes.push_back(amesh);
 	numObjects++;
 
+	// id = 11
 	game.createFinishLine();
 
-	//Butter
+	// create geometry and VAO of the quad for trees id = 12
+	//tree specular color
+	float tree_spec[] = { 0.2f, 0.2f, 0.2f, 1.0f };
+	float tree_shininess = 30.0f;
+
+	amesh = createQuad(6, 6);
+	memcpy(amesh.mat.specular, tree_spec, 4 * sizeof(float));
+	memcpy(amesh.mat.emissive, emissive, 4 * sizeof(float));
+	amesh.mat.shininess = tree_shininess;
+	amesh.mat.texCount = texcount;
+	myMeshes.push_back(amesh);
+	numObjects++;
+
+	//Butter = 12 to 16
 	for (int i = 0; i < numButter; i++) {
 		amesh = createCube();
 		memcpy(amesh.mat.ambient, amb4, 4 * sizeof(float));
@@ -2080,7 +2197,7 @@ void init()
 		//numObjects++;
 	};
 
-	// ROAD
+	// ROAD 17 to 192
 	for (int i = 0; i < numRoads; i++) {
 		amesh = createCube();
 		memcpy(amesh.mat.ambient, amb1, 4 * sizeof(float));
@@ -2093,7 +2210,7 @@ void init()
 		//numObjects++;
 	};
 
-	// Cheerios
+	// Cheerios 193 to 333
 	for (int i = 0; i < numCheerios; i++) {
 
 		amesh = createTorus(0.1f, 0.5f, 20, 20);
@@ -2119,10 +2236,13 @@ void init()
 		}
 	}
 
-	// create geometry and VAO of the quad for particles
+	// create geometry and VAO of the quad for particles id = 334
 	amesh = createQuad(2, 2);
 	amesh.mat.texCount = texcount;
 	myMeshes.push_back(amesh);
+	//numObjects++;
+
+
 
 	// some GL settings
 	//glEnable(GL_DEPTH_TEST);

@@ -17,6 +17,7 @@ uniform sampler2D texmap;
 uniform sampler2D texmap1;
 uniform sampler2D texmap2;
 uniform sampler2D texmap3;
+uniform sampler2D texmap4;
 uniform int texMode;
 
 uniform vec4 sl_dir[2];
@@ -145,6 +146,16 @@ void main() {
 		if((texel.a == 0.0) || (mat.diffuse.a == 0.0) ) discard;
 
 		else colorOut = mat.diffuse * texel;
+		}
+
+	else if (texMode == 4) 	// modulate color with texel4 color
+	{
+		texel = texture(texmap4, DataIn.tex_coord);    //texel from tree.tga
+
+		if (texel.a == 0.0) discard;
+
+		else 
+			colorOut = vec4(max(intensity_spec[0]*texel.rgb + intensity_spec[1], 0.1*texel.rgb), texel.a);
 		}
 
 	else{
