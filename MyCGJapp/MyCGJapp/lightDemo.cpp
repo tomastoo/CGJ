@@ -278,6 +278,7 @@ struct Spotlight {
   float dir[4];
   float ang;
 };
+
 class Car {
 public:
   float position[3] = {0.0f, 0.0f, 0.0f};
@@ -859,6 +860,7 @@ void cam3() {
       game.car.position[2];
   camY = r * sin(inclination * 3.14f / 180.0f) + height;
 
+
   lookAtX = game.car.position[0];
   lookAtY = game.car.position[1];
   lookAtZ = game.car.position[2];
@@ -867,6 +869,36 @@ void cam3() {
 
   cam = 3;
 };
+
+void camRearViewMirror() {
+    // prespective Car Cam
+    // this values rotate the cam in x z WC
+    // inclination 'i' of camera from above
+    //  cam
+    //      \
+  	//       \
+  	//    _ _ i\
+  	//          object;
+
+    float inclination = 10.f;
+    float height = 7;
+    camX =
+        r * sin(-alpha_cam3 * 3.14f / 180.0f) * cos(-beta_cam3 * 3.14f / 180.0f) +
+        game.car.position[0];
+    camZ =
+        r * cos(-alpha_cam3 * 3.14f / 180.0f) * cos(-beta_cam3 * 3.14f / 180.0f) +
+        game.car.position[2];
+    camY = r * sin(inclination * 3.14f / 180.0f) + height;
+
+    lookAtX = game.car.position[0];
+    lookAtY = game.car.position[1];
+    lookAtZ = game.car.position[2];
+
+    game.fogMaxDistance = 50;
+
+
+};
+
 
 // Verifies if two objectes are coliding
 bool CheckCollision(int oneXP, int oneYP, int oneXS, int oneYS, int twoXP,
@@ -1056,24 +1088,32 @@ void renderStencil() {
     loadIdentity(MODEL);
     pushMatrix(VIEW);
     loadIdentity(VIEW);
-
-    if (w <= h)
+    float x;
+    float y;
+    if (w <= h) {
+        x = -2.0 * (GLfloat)h / (GLfloat)w;
+        y = 2.0 * (GLfloat)h / (GLfloat)w;
         ortho(-2.0, 2.0, -2.0 * (GLfloat)h / (GLfloat)w,
             2.0 * (GLfloat)h / (GLfloat)w, -10, 10);
-    else
+    }
+    else {
+        x = -2.0 * (GLfloat)w / (GLfloat)h;
+        y = 2.0 * (GLfloat)w / (GLfloat)h;
+
         ortho(-2.0 * (GLfloat)w / (GLfloat)h,
             2.0 * (GLfloat)w / (GLfloat)h, -2.0, 2.0, -10, 10);
+    }
+    //printf("x = %.3f, y = %.3f\n", x, y); 
 
-
-    translate(MODEL, -0.5f, -0.5f, -0.5f);
+    translate(MODEL, -.75, 1.5f, 0.5f);
+    scale(MODEL, 1.5, 0.6f, 0.5f);
 
     sendMatricesToOGL();
+
     glClear(GL_STENCIL_BUFFER_BIT);
 
     glStencilFunc(GL_NEVER, 0x1, 0x1);
     glStencilOp(GL_REPLACE, GL_KEEP, GL_KEEP);
-
-
     MyMesh amesh = createCube();
 
 
@@ -1081,35 +1121,10 @@ void renderStencil() {
     glDrawElements(amesh.type, amesh.numIndexes, GL_UNSIGNED_INT, 0);
     glBindVertexArray(0);
 
-    //Sphere - send the material
-    loc = glGetUniformLocation(shader.getProgramIndex(), "mat.ambient");
-    glUniform4fv(loc, 1, myMeshes[0].mat.ambient);
-    loc = glGetUniformLocation(shader.getProgramIndex(), "mat.diffuse");
-    glUniform4fv(loc, 1, myMeshes[0].mat.diffuse);
-    loc = glGetUniformLocation(shader.getProgramIndex(), "mat.specular");
-    glUniform4fv(loc, 1, myMeshes[0].mat.specular);
-    loc = glGetUniformLocation(shader.getProgramIndex(), "mat.shininess");
-    glUniform1f(loc, myMeshes[0].mat.shininess);
-   // glUniform1i(texMode_uniformId, 1); //TU1
-    glUniform1i(texMode_uniformId, 4);
-
-    // send matrices to OGL
-    computeDerivedMatrix(PROJ_VIEW_MODEL);
-    glUniformMatrix4fv(vm_uniformId, 1, GL_FALSE, mCompMatrix[VIEW_MODEL]);
-    glUniformMatrix4fv(pvm_uniformId, 1, GL_FALSE, mCompMatrix[PROJ_VIEW_MODEL]);
-    computeNormalMatrix3x3();
-    glUniformMatrix3fv(normal_uniformId, 1, GL_FALSE, mNormal3x3);
-
-     //draw cube where the stencil is 1 
-    glStencilFunc(GL_EQUAL, 0x1, 0x1);
-    glStencilOp(GL_KEEP, GL_KEEP, GL_KEEP);
-    glBindVertexArray(myMeshes[1].vao);
-    glDrawElements(myMeshes[1].type, myMeshes[1].numIndexes, GL_UNSIGNED_INT, 0);
-    glBindVertexArray(0);
-
     popMatrix(PROJECTION);
     popMatrix(MODEL);
     popMatrix(VIEW);
+   
 }
 
 // 0 - paused
@@ -1149,6 +1164,363 @@ void renderOffGameMessage(int messageCase) {
     popMatrix(VIEW);
 }
 
+void renderMeshes() {
+    GLint loc;
+
+    int objId = 0; // id of the object mesh - to be used as index of mesh:
+     // Mymeshes[objID] means the current mesh
+
+    for (int i = 0; i < numObjects; ++i) {
+        //		for (int j = 0; j < 2; ++j) {
+
+        // send the material
+        loc = glGetUniformLocation(shader.getProgramIndex(), "mat.ambient");
+        glUniform4fv(loc, 1, myMeshes[objId].mat.ambient);
+        loc = glGetUniformLocation(shader.getProgramIndex(), "mat.diffuse");
+        glUniform4fv(loc, 1, myMeshes[objId].mat.diffuse);
+        loc = glGetUniformLocation(shader.getProgramIndex(), "mat.specular");
+        glUniform4fv(loc, 1, myMeshes[objId].mat.specular);
+        loc = glGetUniformLocation(shader.getProgramIndex(), "mat.shininess");
+        glUniform1f(loc, myMeshes[objId].mat.shininess);
+        pushMatrix(MODEL);
+
+        // TODO THIS IS SHIT I WANT THIS WHEN DEFINING THE VO in the init() func
+        // Values correspond to 0,0 on the table coords = wc
+        float torusY = 1.0f; // z in world coords
+        float carBodyZ = 1.5f;
+        float carBodyX = 3.0f;
+        float jointCarGap = 0.5f;
+
+        // game.car.move();
+        float* position = game.car.position;
+
+        float p;
+        float q;
+
+        switch (objId) {
+        case 0:
+            // table
+            translate(MODEL, 0.0f, 0.0f, 0.0f);
+            scale(MODEL, tableX, tableY, tableZ);
+
+            break;
+        case 1:
+        case 2:
+        case 3:
+        case 4:
+        case 5:
+            // orange
+            game.orange[objId - 1].renderOrange();
+            break;
+        case 6:
+            // car wheel torus RIGHT TOP
+            translate(
+                MODEL,
+                position[0] + (carBodyZ)*sin(DegToRad(game.car.directionAngle)) +
+                (carBodyX - jointCarGap) *
+                cos(DegToRad(game.car.directionAngle)),
+                position[1] + torusY,
+                position[2] + carBodyZ * cos(DegToRad(game.car.directionAngle)) -
+                (carBodyX - jointCarGap) *
+                sin(DegToRad(game.car.directionAngle)));
+            rotate(MODEL, game.car.directionAngle, 0.0f, 1.0f, 0.0f);
+            rotate(MODEL, 90.0f, 1.0f, 0.0f, 0.0f);
+
+            break;
+        case 7:
+            // car wheel torus LEFT TOP
+            translate(MODEL,
+                position[0] + (carBodyX - jointCarGap) *
+                cos(DegToRad(game.car.directionAngle)),
+                position[1] + torusY,
+                position[2] - (carBodyX - jointCarGap) *
+                sin(DegToRad(game.car.directionAngle)));
+            rotate(MODEL, game.car.directionAngle, 0.0f, 1.0f, 0.0f);
+            rotate(MODEL, 90.0f, 1.0f, 0.0f, 0.0f);
+
+            break;
+
+        case 8:
+            // car wheel torus RIGHT BOTTOM
+
+            translate(
+                MODEL,
+                position[0] + carBodyZ * sin(DegToRad(game.car.directionAngle)) +
+                (jointCarGap * cos(DegToRad(game.car.directionAngle))),
+                position[1] + torusY,
+                position[2] +
+                (carBodyZ *
+                    cos(game.car.directionAngle * 3.14159265358979323846f / 180)) -
+                (jointCarGap *
+                    sin(game.car.directionAngle * 3.14159265358979323846f / 180)));
+            rotate(MODEL, game.car.directionAngle, 0.0f, 1.0f, 0.0f);
+            rotate(MODEL, 90.0f, 1.0f, 0.0f, 0.0f);
+
+            break;
+        case 9:
+            // car wheel torus LEFT BOTTOM
+
+            translate(
+                MODEL,
+                position[0] + jointCarGap * cos(DegToRad(game.car.directionAngle)),
+                position[1] + torusY,
+                position[2] - jointCarGap * sin(DegToRad(game.car.directionAngle)));
+            rotate(MODEL, game.car.directionAngle, 0.0f, 1.0f, 0.0f);
+            rotate(MODEL, 90.0f, 1.0f, 0.0f, 0.0f);
+            break;
+        case 10:
+            // car body
+            translate(MODEL, position[0], position[1] + torusY - 0.2f, position[2]);
+            rotate(MODEL, game.car.directionAngle, 0.0f, 1.0f, 0.0f);
+            scale(MODEL, carBodyX, 0.5, carBodyZ);
+            break;
+
+        case 11:
+            game.renderFinishLine();
+            break;
+        };
+
+        // send matrices to OGL
+        computeDerivedMatrix(PROJ_VIEW_MODEL);
+        glUniformMatrix4fv(vm_uniformId, 1, GL_FALSE, mCompMatrix[VIEW_MODEL]);
+        glUniformMatrix4fv(pvm_uniformId, 1, GL_FALSE,
+            mCompMatrix[PROJ_VIEW_MODEL]);
+        computeNormalMatrix3x3();
+        glUniformMatrix3fv(normal_uniformId, 1, GL_FALSE, mNormal3x3);
+
+        // Render mesh
+        if (objId == 0)
+            glUniform1i(texMode_uniformId, 0);
+        else if (objId == 11)
+            glUniform1i(texMode_uniformId, 2);
+        else
+            glUniform1i(texMode_uniformId, 3);
+
+        glBindVertexArray(myMeshes[objId].vao);
+
+        if (!shader.isProgramValid()) {
+            printf("Program Not Valid!\n");
+            exit(1);
+        }
+        glDrawElements(myMeshes[objId].type, myMeshes[objId].numIndexes,
+            GL_UNSIGNED_INT, 0);
+        glBindVertexArray(0);
+
+        popMatrix(MODEL);
+        objId++;
+        //}
+    }
+
+    for (int y = 0; y < numButter; y++) {
+        // send the material
+        loc = glGetUniformLocation(shader.getProgramIndex(), "mat.ambient");
+        glUniform4fv(loc, 1, myMeshes[objId].mat.ambient);
+        loc = glGetUniformLocation(shader.getProgramIndex(), "mat.diffuse");
+        glUniform4fv(loc, 1, myMeshes[objId].mat.diffuse);
+        loc = glGetUniformLocation(shader.getProgramIndex(), "mat.specular");
+        glUniform4fv(loc, 1, myMeshes[objId].mat.specular);
+        loc = glGetUniformLocation(shader.getProgramIndex(), "mat.shininess");
+        glUniform1f(loc, myMeshes[objId].mat.shininess);
+        pushMatrix(MODEL);
+
+        // TODO THIS IS SHIT I WANT THIS WHEN DEFINING THE VO in the init() func
+        // Values correspond to 0,0 on the table coords = wc
+        float torusY = 1.0f; // z in world coords
+        float carBodyX = 1.5f;
+        float carBodyY = 3.0f;
+        float jointCarGap = -0.5f;
+
+        //game.car.move();
+        float* position = game.car.position;
+
+        // butter
+        translate(MODEL, game.butter[y].position[0], game.butter[y].position[1],
+            game.butter[y].position[2]);
+        // scale(MODEL, 4, 2, 5);
+
+        // send matrices to OGL
+        computeDerivedMatrix(PROJ_VIEW_MODEL);
+        glUniformMatrix4fv(vm_uniformId, 1, GL_FALSE, mCompMatrix[VIEW_MODEL]);
+        glUniformMatrix4fv(pvm_uniformId, 1, GL_FALSE,
+            mCompMatrix[PROJ_VIEW_MODEL]);
+        computeNormalMatrix3x3();
+        glUniformMatrix3fv(normal_uniformId, 1, GL_FALSE, mNormal3x3);
+
+        // Render mesh
+        glUniform1i(texMode_uniformId, 3);
+        glBindVertexArray(myMeshes[objId].vao);
+
+        if (!shader.isProgramValid()) {
+            printf("Program Not Valid!\n");
+            exit(1);
+        }
+        glDrawElements(myMeshes[objId].type, myMeshes[objId].numIndexes,
+            GL_UNSIGNED_INT, 0);
+        glBindVertexArray(0);
+
+        popMatrix(MODEL);
+        objId++;
+    }
+
+    for (int j = 0; j < mapRows; j++) {
+        for (int k = 0; k < mapCols; k++) {
+            if (mapRoad[j][k] != 1) {
+                continue;
+            }
+            // printf("numR:  %d", numRoads);
+            // send the material
+            loc = glGetUniformLocation(shader.getProgramIndex(), "mat.ambient");
+            glUniform4fv(loc, 1, myMeshes[objId].mat.ambient);
+            loc = glGetUniformLocation(shader.getProgramIndex(), "mat.diffuse");
+            glUniform4fv(loc, 1, myMeshes[objId].mat.diffuse);
+            loc = glGetUniformLocation(shader.getProgramIndex(), "mat.specular");
+            glUniform4fv(loc, 1, myMeshes[objId].mat.specular);
+            loc = glGetUniformLocation(shader.getProgramIndex(), "mat.shininess");
+            glUniform1f(loc, myMeshes[objId].mat.shininess);
+            pushMatrix(MODEL);
+
+            // TODO THIS IS SHIT I WANT THIS WHEN DEFINING THE VO in the init() func
+            // Values correspond to 0,0 on the table coords = wc
+            float torusY = 1.0f; // z in world coords
+            float carBodyX = 1.5f;
+            float carBodyY = 3.0f;
+            float jointCarGap = -0.5f;
+
+            //game.car.move();
+            float* position = game.car.position;
+
+            if (mapRoad[j][k] == 1) {
+                translate(MODEL, roadWidth * k, 0.1f, roadWidth * j);
+                scale(MODEL, roadWidth, 0.5, roadWidth);
+            }
+            else if (mapRoad[j][k] == 27) {
+                translate(MODEL, roadTurn * k, 0.1f, roadTurn * j);
+                scale(MODEL, roadTurn, 0.5, roadTurn);
+            }
+            // send matrices to OGL
+            computeDerivedMatrix(PROJ_VIEW_MODEL);
+            glUniformMatrix4fv(vm_uniformId, 1, GL_FALSE, mCompMatrix[VIEW_MODEL]);
+            glUniformMatrix4fv(pvm_uniformId, 1, GL_FALSE,
+                mCompMatrix[PROJ_VIEW_MODEL]);
+            computeNormalMatrix3x3();
+            glUniformMatrix3fv(normal_uniformId, 1, GL_FALSE, mNormal3x3);
+
+            // Render mesh
+            glUniform1i(texMode_uniformId, 1);
+            glBindVertexArray(myMeshes[objId].vao);
+
+            if (!shader.isProgramValid()) {
+                printf("Program Not Valid!\n");
+                exit(1);
+            }
+            glDrawElements(myMeshes[objId].type, myMeshes[objId].numIndexes,
+                GL_UNSIGNED_INT, 0);
+            glBindVertexArray(0);
+
+            popMatrix(MODEL);
+            objId++;
+        }
+    }
+
+    int iteCheerio = 0;
+
+    for (int j = 0; j < mapRows; j++) {
+        for (int k = 0; k < mapCols; k++) {
+            if (mapRoad[j][k] != 2) {
+                continue;
+            }
+
+            // printf("numR:  %d", numRoads);
+            // send the material
+            loc = glGetUniformLocation(shader.getProgramIndex(), "mat.ambient");
+            glUniform4fv(loc, 1, myMeshes[objId].mat.ambient);
+            loc = glGetUniformLocation(shader.getProgramIndex(), "mat.diffuse");
+            glUniform4fv(loc, 1, myMeshes[objId].mat.diffuse);
+            loc = glGetUniformLocation(shader.getProgramIndex(), "mat.specular");
+            glUniform4fv(loc, 1, myMeshes[objId].mat.specular);
+            loc = glGetUniformLocation(shader.getProgramIndex(), "mat.shininess");
+            glUniform1f(loc, myMeshes[objId].mat.shininess);
+            pushMatrix(MODEL);
+
+            // TODO THIS IS SHIT I WANT THIS WHEN DEFINING THE VO in the init() func
+            // Values correspond to 0,0 on the table coords = wc
+            float torusY = 1.0f; // z in world coords
+            float carBodyX = 1.5f;
+            float carBodyY = 3.0f;
+            float jointCarGap = -0.5f;
+
+            // game.car.move();
+            float* position = game.car.position;
+
+            if (mapRoad[j][k] == 2) {
+                translate(MODEL, game.cheerio[iteCheerio].position[0],
+                    game.cheerio[iteCheerio].position[1],
+                    game.cheerio[iteCheerio].position[2]);
+                scale(MODEL, roadWidth - 2, 1.5, roadWidth - 2);
+                iteCheerio++;
+            }
+
+            // send matrices to OGL
+            computeDerivedMatrix(PROJ_VIEW_MODEL);
+            glUniformMatrix4fv(vm_uniformId, 1, GL_FALSE, mCompMatrix[VIEW_MODEL]);
+            glUniformMatrix4fv(pvm_uniformId, 1, GL_FALSE,
+                mCompMatrix[PROJ_VIEW_MODEL]);
+            computeNormalMatrix3x3();
+            glUniformMatrix3fv(normal_uniformId, 1, GL_FALSE, mNormal3x3);
+
+            // Render mesh
+            glUniform1i(texMode_uniformId, 1);
+            glBindVertexArray(myMeshes[objId].vao);
+
+            if (!shader.isProgramValid()) {
+                printf("Program Not Valid!\n");
+                exit(1);
+            }
+            glDrawElements(myMeshes[objId].type, myMeshes[objId].numIndexes,
+                GL_UNSIGNED_INT, 0);
+            glBindVertexArray(0);
+
+            popMatrix(MODEL);
+            objId++;
+        }
+    }
+}
+
+void renderPawn() {
+    
+    float amb[] = { 0.2f, 0.15f, 0.1f, 1.0f };
+    float diff[] = { 0.8f, 0.6f, 0.4f, 1.0f };
+    float spec[] = { 0.8f, 0.8f, 0.8f, 1.0f };
+    float emissive[] = { 0.0f, 0.0f, 0.0f, 1.0f };
+    float shininess = 100.0f;
+    int texcount = 0;
+    GLint loc;
+    // create geometry and VAO of the pawn
+    MyMesh amesh = createPawn();
+    memcpy(amesh.mat.ambient, amb, 4 * sizeof(float));
+    memcpy(amesh.mat.diffuse, diff, 4 * sizeof(float));
+    memcpy(amesh.mat.specular, spec, 4 * sizeof(float));
+    memcpy(amesh.mat.emissive, emissive, 4 * sizeof(float));
+    amesh.mat.shininess = shininess;
+    amesh.mat.texCount = texcount;
+
+    loc = glGetUniformLocation(shader.getProgramIndex(), "mat.ambient");
+    glUniform4fv(loc, 1, amesh.mat.ambient);
+    loc = glGetUniformLocation(shader.getProgramIndex(), "mat.diffuse");
+    glUniform4fv(loc, 1, amesh.mat.diffuse);
+    loc = glGetUniformLocation(shader.getProgramIndex(), "mat.specular");
+    glUniform4fv(loc, 1, amesh.mat.specular);
+    loc = glGetUniformLocation(shader.getProgramIndex(), "mat.shininess");
+    glUniform1f(loc, amesh.mat.shininess);
+    pushMatrix(MODEL);
+    // send matrices to OGL
+    computeDerivedMatrix(PROJ_VIEW_MODEL);
+    glUniformMatrix4fv(vm_uniformId, 1, GL_FALSE, mCompMatrix[VIEW_MODEL]);
+    glUniformMatrix4fv(pvm_uniformId, 1, GL_FALSE,
+        mCompMatrix[PROJ_VIEW_MODEL]);
+    computeNormalMatrix3x3();
+    glUniformMatrix3fv(normal_uniformId, 1, GL_FALSE, mNormal3x3);
+}
 // ------------------------------------------------ ------------
 //
 // Render stufff
@@ -1156,7 +1528,6 @@ void renderOffGameMessage(int messageCase) {
 
 void renderScene(void) {
 
-  GLint loc;
   FrameCount++;
   glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
   // load identity matrices
@@ -1165,23 +1536,20 @@ void renderScene(void) {
 
   // set the camera using a function similar to gluLookAt
 
-  lookAt(camX, camY, camZ, lookAtX, lookAtY, lookAtZ, 0, 1, 0);
+    lookAt(camX, camY, camZ, lookAtX, lookAtY, lookAtZ, 0, 1, 0);
+
     // use our shader
     glUseProgram(shader.getProgramIndex());
     game.updateTextureSl();
 
+    renderLights();
     renderFog();
     renderTextures();
-    renderLights();
+    //renderStencil();
+
 
   if (!game.isFinished) {
-    
-    if (game.isGamePaused) {
-        //renderStencil();
-        //glStencilFunc(GL_NOTEQUAL, 0x1, 0x1);
-    }
-    else{
-      glClear(GL_STENCIL_BUFFER_BIT);
+    if (!game.isGamePaused) {
       keyOperations();
       game.car.move();
       float *p = getCarCenter();
@@ -1206,383 +1574,71 @@ void renderScene(void) {
       }
     }
   }
+    //camRearViewMirror();
 
-    int objId = 0; // id of the object mesh - to be used as index of mesh:
-                   // Mymeshes[objID] means the current mesh
-    for (int i = 0; i < numObjects; ++i) {
-      //		for (int j = 0; j < 2; ++j) {
+    //glStencilFunc(GL_NOTEQUAL, 0x1, 0x1);
+    //draw
+    renderMeshes();
 
-      // send the material
-      loc = glGetUniformLocation(shader.getProgramIndex(), "mat.ambient");
-      glUniform4fv(loc, 1, myMeshes[objId].mat.ambient);
-      loc = glGetUniformLocation(shader.getProgramIndex(), "mat.diffuse");
-      glUniform4fv(loc, 1, myMeshes[objId].mat.diffuse);
-      loc = glGetUniformLocation(shader.getProgramIndex(), "mat.specular");
-      glUniform4fv(loc, 1, myMeshes[objId].mat.specular);
-      loc = glGetUniformLocation(shader.getProgramIndex(), "mat.shininess");
-      glUniform1f(loc, myMeshes[objId].mat.shininess);
-      pushMatrix(MODEL);
+    // Render text (bitmap fonts) in screen coordinates. So use ortoghonal
+    // projection with viewport coordinates.
 
-      // TODO THIS IS SHIT I WANT THIS WHEN DEFINING THE VO in the init() func
-      // Values correspond to 0,0 on the table coords = wc
-      float torusY = 1.0f; // z in world coords
-      float carBodyZ = 1.5f;
-      float carBodyX = 3.0f;
-      float jointCarGap = 0.5f;
+    glDisable(GL_DEPTH_TEST);
+    // the glyph contains background colors and non-transparent for the actual
+    // character pixels. So we use the blending
+    glEnable(GL_BLEND);
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+    int m_viewport[4];
+    glGetIntegerv(GL_VIEWPORT, m_viewport);
 
-      // game.car.move();
-      float *position = game.car.position;
+    // viewer at origin looking down at  negative z direction
+    pushMatrix(MODEL);
+    loadIdentity(MODEL);
+    pushMatrix(PROJECTION);
+    loadIdentity(PROJECTION);
+    pushMatrix(VIEW);
+    loadIdentity(VIEW);
 
-      float p;
-      float q;
-
-      switch (objId) {
-      case 0:
-        // table
-        translate(MODEL, 0.0f, 0.0f, 0.0f);
-        scale(MODEL, tableX, tableY, tableZ);
-
+    switch (cam) {
+    case 1:
+        ortho(m_viewport[0], m_viewport[0] + m_viewport[2] - 1, m_viewport[1],
+            m_viewport[1] + m_viewport[3] - 1, -1, 1);
         break;
-      case 1:
-      case 2:
-      case 3:
-      case 4:
-      case 5:
-        // orange
-        game.orange[objId - 1].renderOrange();
+    case 2:
+        perspective(120.0f, 1.33f, 15.0, 120.0);
         break;
-      case 6:
-        // car wheel torus RIGHT TOP
-        translate(
-            MODEL,
-            position[0] + (carBodyZ)*sin(DegToRad(game.car.directionAngle)) +
-                (carBodyX - jointCarGap) *
-                    cos(DegToRad(game.car.directionAngle)),
-            position[1] + torusY,
-            position[2] + carBodyZ * cos(DegToRad(game.car.directionAngle)) -
-                (carBodyX - jointCarGap) *
-                    sin(DegToRad(game.car.directionAngle)));
-        rotate(MODEL, game.car.directionAngle, 0.0f, 1.0f, 0.0f);
-        rotate(MODEL, 90.0f, 1.0f, 0.0f, 0.0f);
-
+    case 3:
+        perspective(120.0f, 1.33f, 15.0, 120.0);
+        cam3();
         break;
-      case 7:
-        // car wheel torus LEFT TOP
-        translate(MODEL,
-                  position[0] + (carBodyX - jointCarGap) *
-                                    cos(DegToRad(game.car.directionAngle)),
-                  position[1] + torusY,
-                  position[2] - (carBodyX - jointCarGap) *
-                                    sin(DegToRad(game.car.directionAngle)));
-        rotate(MODEL, game.car.directionAngle, 0.0f, 1.0f, 0.0f);
-        rotate(MODEL, 90.0f, 1.0f, 0.0f, 0.0f);
-
-        break;
-
-      case 8:
-        // car wheel torus RIGHT BOTTOM
-
-        translate(
-            MODEL,
-            position[0] + carBodyZ * sin(DegToRad(game.car.directionAngle)) +
-                (jointCarGap * cos(DegToRad(game.car.directionAngle))),
-            position[1] + torusY,
-            position[2] +
-                (carBodyZ *
-                 cos(game.car.directionAngle * 3.14159265358979323846f / 180)) -
-                (jointCarGap *
-                 sin(game.car.directionAngle * 3.14159265358979323846f / 180)));
-        rotate(MODEL, game.car.directionAngle, 0.0f, 1.0f, 0.0f);
-        rotate(MODEL, 90.0f, 1.0f, 0.0f, 0.0f);
-
-        break;
-      case 9:
-        // car wheel torus LEFT BOTTOM
-
-        translate(
-            MODEL,
-            position[0] + jointCarGap * cos(DegToRad(game.car.directionAngle)),
-            position[1] + torusY,
-            position[2] - jointCarGap * sin(DegToRad(game.car.directionAngle)));
-        rotate(MODEL, game.car.directionAngle, 0.0f, 1.0f, 0.0f);
-        rotate(MODEL, 90.0f, 1.0f, 0.0f, 0.0f);
-        break;
-      case 10:
-        // car body
-        translate(MODEL, position[0], position[1] + torusY - 0.2f, position[2]);
-        rotate(MODEL, game.car.directionAngle, 0.0f, 1.0f, 0.0f);
-        scale(MODEL, carBodyX, 0.5, carBodyZ);
-        break;
-
-      case 11:
-        game.renderFinishLine();
-        break;
-      };
-
-      // send matrices to OGL
-      computeDerivedMatrix(PROJ_VIEW_MODEL);
-      glUniformMatrix4fv(vm_uniformId, 1, GL_FALSE, mCompMatrix[VIEW_MODEL]);
-      glUniformMatrix4fv(pvm_uniformId, 1, GL_FALSE,
-                         mCompMatrix[PROJ_VIEW_MODEL]);
-      computeNormalMatrix3x3();
-      glUniformMatrix3fv(normal_uniformId, 1, GL_FALSE, mNormal3x3);
-
-      // Render mesh
-      if (objId == 0)
-        glUniform1i(texMode_uniformId, 0);
-      else if (objId == 11)
-        glUniform1i(texMode_uniformId, 2);
-      else
-        glUniform1i(texMode_uniformId, 3);
-
-      glBindVertexArray(myMeshes[objId].vao);
-
-      if (!shader.isProgramValid()) {
-        printf("Program Not Valid!\n");
-        exit(1);
-      }
-      glDrawElements(myMeshes[objId].type, myMeshes[objId].numIndexes,
-                     GL_UNSIGNED_INT, 0);
-      glBindVertexArray(0);
-
-      popMatrix(MODEL);
-      objId++;
-      //}
     }
 
-    for (int y = 0; y < numButter; y++) {
-      // send the material
-      loc = glGetUniformLocation(shader.getProgramIndex(), "mat.ambient");
-      glUniform4fv(loc, 1, myMeshes[objId].mat.ambient);
-      loc = glGetUniformLocation(shader.getProgramIndex(), "mat.diffuse");
-      glUniform4fv(loc, 1, myMeshes[objId].mat.diffuse);
-      loc = glGetUniformLocation(shader.getProgramIndex(), "mat.specular");
-      glUniform4fv(loc, 1, myMeshes[objId].mat.specular);
-      loc = glGetUniformLocation(shader.getProgramIndex(), "mat.shininess");
-      glUniform1f(loc, myMeshes[objId].mat.shininess);
-      pushMatrix(MODEL);
+    popMatrix(PROJECTION);
+    popMatrix(VIEW);
+    popMatrix(MODEL);
 
-      // TODO THIS IS SHIT I WANT THIS WHEN DEFINING THE VO in the init() func
-      // Values correspond to 0,0 on the table coords = wc
-      float torusY = 1.0f; // z in world coords
-      float carBodyX = 1.5f;
-      float carBodyY = 3.0f;
-      float jointCarGap = -0.5f;
+    renderHUD();
+    
 
-      //game.car.move();
-      float *position = game.car.position;
-
-      // butter
-      translate(MODEL, game.butter[y].position[0], game.butter[y].position[1],
-                game.butter[y].position[2]);
-      // scale(MODEL, 4, 2, 5);
-
-      // send matrices to OGL
-      computeDerivedMatrix(PROJ_VIEW_MODEL);
-      glUniformMatrix4fv(vm_uniformId, 1, GL_FALSE, mCompMatrix[VIEW_MODEL]);
-      glUniformMatrix4fv(pvm_uniformId, 1, GL_FALSE,
-                         mCompMatrix[PROJ_VIEW_MODEL]);
-      computeNormalMatrix3x3();
-      glUniformMatrix3fv(normal_uniformId, 1, GL_FALSE, mNormal3x3);
-
-      // Render mesh
-      glUniform1i(texMode_uniformId, 3);
-      glBindVertexArray(myMeshes[objId].vao);
-
-      if (!shader.isProgramValid()) {
-        printf("Program Not Valid!\n");
-        exit(1);
-      }
-      glDrawElements(myMeshes[objId].type, myMeshes[objId].numIndexes,
-                     GL_UNSIGNED_INT, 0);
-      glBindVertexArray(0);
-
-      popMatrix(MODEL);
-      objId++;
+    if (game.isGamePaused) {
+        //renderStencil();
+        //glStencilFunc(GL_NOTEQUAL, 0x1, 0x1);
+        renderOffGameMessage(0);
     }
-
-    for (int j = 0; j < mapRows; j++) {
-      for (int k = 0; k < mapCols; k++) {
-        if (mapRoad[j][k] != 1) {
-          continue;
-        }
-        // printf("numR:  %d", numRoads);
-        // send the material
-        loc = glGetUniformLocation(shader.getProgramIndex(), "mat.ambient");
-        glUniform4fv(loc, 1, myMeshes[objId].mat.ambient);
-        loc = glGetUniformLocation(shader.getProgramIndex(), "mat.diffuse");
-        glUniform4fv(loc, 1, myMeshes[objId].mat.diffuse);
-        loc = glGetUniformLocation(shader.getProgramIndex(), "mat.specular");
-        glUniform4fv(loc, 1, myMeshes[objId].mat.specular);
-        loc = glGetUniformLocation(shader.getProgramIndex(), "mat.shininess");
-        glUniform1f(loc, myMeshes[objId].mat.shininess);
-        pushMatrix(MODEL);
-
-        // TODO THIS IS SHIT I WANT THIS WHEN DEFINING THE VO in the init() func
-        // Values correspond to 0,0 on the table coords = wc
-        float torusY = 1.0f; // z in world coords
-        float carBodyX = 1.5f;
-        float carBodyY = 3.0f;
-        float jointCarGap = -0.5f;
-
-        //game.car.move();
-        float *position = game.car.position;
-
-        if (mapRoad[j][k] == 1) {
-          translate(MODEL, roadWidth * k, 0.1f, roadWidth * j);
-          scale(MODEL, roadWidth, 0.5, roadWidth);
-        } else if (mapRoad[j][k] == 27) {
-          translate(MODEL, roadTurn * k, 0.1f, roadTurn * j);
-          scale(MODEL, roadTurn, 0.5, roadTurn);
-        }
-        // send matrices to OGL
-        computeDerivedMatrix(PROJ_VIEW_MODEL);
-        glUniformMatrix4fv(vm_uniformId, 1, GL_FALSE, mCompMatrix[VIEW_MODEL]);
-        glUniformMatrix4fv(pvm_uniformId, 1, GL_FALSE,
-                           mCompMatrix[PROJ_VIEW_MODEL]);
-        computeNormalMatrix3x3();
-        glUniformMatrix3fv(normal_uniformId, 1, GL_FALSE, mNormal3x3);
-
-        // Render mesh
-        glUniform1i(texMode_uniformId, 1);
-        glBindVertexArray(myMeshes[objId].vao);
-
-        if (!shader.isProgramValid()) {
-          printf("Program Not Valid!\n");
-          exit(1);
-        }
-        glDrawElements(myMeshes[objId].type, myMeshes[objId].numIndexes,
-                       GL_UNSIGNED_INT, 0);
-        glBindVertexArray(0);
-
-        popMatrix(MODEL);
-        objId++;
-      }
+    else if (game.isFinished && game.win) {
+        renderOffGameMessage(2);
     }
-    int iteCheerio = 0;
-    for (int j = 0; j < mapRows; j++) {
-      for (int k = 0; k < mapCols; k++) {
-        if (mapRoad[j][k] != 2) {
-          continue;
-        }
-
-        // printf("numR:  %d", numRoads);
-        // send the material
-        loc = glGetUniformLocation(shader.getProgramIndex(), "mat.ambient");
-        glUniform4fv(loc, 1, myMeshes[objId].mat.ambient);
-        loc = glGetUniformLocation(shader.getProgramIndex(), "mat.diffuse");
-        glUniform4fv(loc, 1, myMeshes[objId].mat.diffuse);
-        loc = glGetUniformLocation(shader.getProgramIndex(), "mat.specular");
-        glUniform4fv(loc, 1, myMeshes[objId].mat.specular);
-        loc = glGetUniformLocation(shader.getProgramIndex(), "mat.shininess");
-        glUniform1f(loc, myMeshes[objId].mat.shininess);
-        pushMatrix(MODEL);
-
-        // TODO THIS IS SHIT I WANT THIS WHEN DEFINING THE VO in the init() func
-        // Values correspond to 0,0 on the table coords = wc
-        float torusY = 1.0f; // z in world coords
-        float carBodyX = 1.5f;
-        float carBodyY = 3.0f;
-        float jointCarGap = -0.5f;
-
-       // game.car.move();
-        float *position = game.car.position;
-
-        if (mapRoad[j][k] == 2) {
-          translate(MODEL, game.cheerio[iteCheerio].position[0],
-                    game.cheerio[iteCheerio].position[1],
-                    game.cheerio[iteCheerio].position[2]);
-          scale(MODEL, roadWidth - 2, 1.5, roadWidth - 2);
-          iteCheerio++;
-        }
-
-        // send matrices to OGL
-        computeDerivedMatrix(PROJ_VIEW_MODEL);
-        glUniformMatrix4fv(vm_uniformId, 1, GL_FALSE, mCompMatrix[VIEW_MODEL]);
-        glUniformMatrix4fv(pvm_uniformId, 1, GL_FALSE,
-                           mCompMatrix[PROJ_VIEW_MODEL]);
-        computeNormalMatrix3x3();
-        glUniformMatrix3fv(normal_uniformId, 1, GL_FALSE, mNormal3x3);
-
-        // Render mesh
-        glUniform1i(texMode_uniformId, 1);
-        glBindVertexArray(myMeshes[objId].vao);
-
-        if (!shader.isProgramValid()) {
-          printf("Program Not Valid!\n");
-          exit(1);
-        }
-        glDrawElements(myMeshes[objId].type, myMeshes[objId].numIndexes,
-                       GL_UNSIGNED_INT, 0);
-        glBindVertexArray(0);
-
-        popMatrix(MODEL);
-        objId++;
-      }
+    else if (game.isFinished && !game.win) {
+        renderOffGameMessage(1);
     }
- 
-
-  // Render text (bitmap fonts) in screen coordinates. So use ortoghonal
-  // projection with viewport coordinates.
-  glDisable(GL_DEPTH_TEST);
-  // the glyph contains background colors and non-transparent for the actual
-  // character pixels. So we use the blending
-  glEnable(GL_BLEND);
-  glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-  int m_viewport[4];
-  glGetIntegerv(GL_VIEWPORT, m_viewport);
-
-  // viewer at origin looking down at  negative z direction
-  pushMatrix(MODEL);
-  loadIdentity(MODEL);
-  pushMatrix(PROJECTION);
-  loadIdentity(PROJECTION);
-  pushMatrix(VIEW);
-  loadIdentity(VIEW);
-
-  switch (cam) {
-  case 1:
-    ortho(m_viewport[0], m_viewport[0] + m_viewport[2] - 1, m_viewport[1],
-          m_viewport[1] + m_viewport[3] - 1, -1, 1);
-    // printf("cam1");
-    break;
-  case 2:
-    perspective(120.0f, 1.33f, 15.0, 120.0);
-    // printf("cam2");
-    break;
-  case 3:
-    perspective(120.0f, 1.33f, 15.0, 120.0);
-    cam3();
-    // printf("cam3");
-    break;
-  }
-
-  // RenderText(shaderText, "CGJ Light and Text Rendering Demo", 440.0f, 570.0f,
-  // 0.5f, 0.3, 0.7f, 0.9f);
-
-  popMatrix(PROJECTION);
-  popMatrix(VIEW);
-  popMatrix(MODEL);
-
-  renderHUD();
-
-  if (game.isGamePaused) {
-      //renderStencil();
-      //glStencilFunc(GL_NOTEQUAL, 0x1, 0x1);
-      renderOffGameMessage(0);
-  }
-  else if (game.isFinished && game.win) {
-      renderOffGameMessage(2);
-  }
-  else if (game.isFinished && !game.win) {
-      renderOffGameMessage(1);
-  }
-
+    
   glEnable(GL_DEPTH_TEST);
   glDisable(GL_BLEND);
 
   glutSwapBuffers();
 }
+
+
 
 // ------------------------------------------------------------
 //
