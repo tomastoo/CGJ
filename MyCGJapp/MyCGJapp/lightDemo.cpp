@@ -1570,7 +1570,81 @@ void renderMeshes() {
       game.renderFinishLine();
       break;
 
-    case 12: // TREE WITH BILLBOARDING
+    case 12:
+
+        glEnable(GL_BLEND);
+        glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+
+        glUniform1i(texMode_uniformId, 4); // draw textured quads
+
+        pushMatrix(MODEL);
+        pos[0] = 35.0;
+        pos[1] = 4.0;
+        pos[2] = 45.0;
+
+        translate(MODEL, pos[0], pos[1], pos[2]);
+
+        l3dBillboardSphericalBegin(camh, pos);
+
+        // diffuse and ambient color are not used in the tree quads
+        loc = glGetUniformLocation(shader.getProgramIndex(), "mat.specular");
+        glUniform4fv(loc, 1, myMeshes[objId].mat.specular);
+        loc = glGetUniformLocation(shader.getProgramIndex(), "mat.shininess");
+        glUniform1f(loc, myMeshes[objId].mat.shininess);
+
+        pushMatrix(MODEL);
+
+        computeDerivedMatrix(PROJ_VIEW_MODEL);
+
+        glUniformMatrix4fv(vm_uniformId, 1, GL_FALSE, mCompMatrix[VIEW_MODEL]);
+        glUniformMatrix4fv(pvm_uniformId, 1, GL_FALSE, mCompMatrix[PROJ_VIEW_MODEL]);
+        computeNormalMatrix3x3();
+        glUniformMatrix3fv(normal_uniformId, 1, GL_FALSE, mNormal3x3);
+        glBindVertexArray(myMeshes[objId].vao);
+        glDrawElements(myMeshes[objId].type, myMeshes[objId].numIndexes,GL_UNSIGNED_INT, 0);
+        popMatrix(MODEL);
+        popMatrix(MODEL);
+        glDisable(GL_BLEND);
+        break;
+
+    case 13:
+
+        glEnable(GL_BLEND);
+        glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+
+        glUniform1i(texMode_uniformId, 4); // draw textured quads
+
+        pushMatrix(MODEL);
+        pos[0] = 45.0;
+        pos[1] = 4.0;
+        pos[2] = 45.0;
+
+        translate(MODEL, pos[0], pos[1], pos[2]);
+
+        l3dBillboardSphericalBegin(camh, pos);
+
+        // diffuse and ambient color are not used in the tree quads
+        loc = glGetUniformLocation(shader.getProgramIndex(), "mat.specular");
+        glUniform4fv(loc, 1, myMeshes[objId].mat.specular);
+        loc = glGetUniformLocation(shader.getProgramIndex(), "mat.shininess");
+        glUniform1f(loc, myMeshes[objId].mat.shininess);
+
+        pushMatrix(MODEL);
+
+        computeDerivedMatrix(PROJ_VIEW_MODEL);
+
+        glUniformMatrix4fv(vm_uniformId, 1, GL_FALSE, mCompMatrix[VIEW_MODEL]);
+        glUniformMatrix4fv(pvm_uniformId, 1, GL_FALSE, mCompMatrix[PROJ_VIEW_MODEL]);
+        computeNormalMatrix3x3();
+        glUniformMatrix3fv(normal_uniformId, 1, GL_FALSE, mNormal3x3);
+        glBindVertexArray(myMeshes[objId].vao);
+        glDrawElements(myMeshes[objId].type, myMeshes[objId].numIndexes,GL_UNSIGNED_INT, 0);
+        popMatrix(MODEL);
+        popMatrix(MODEL);
+        glDisable(GL_BLEND);
+        break;
+
+    case 14:     // TREE WITH BILLBOARDING
 
       glEnable(GL_BLEND);
       glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
@@ -1578,7 +1652,7 @@ void renderMeshes() {
       glUniform1i(texMode_uniformId, 4); // draw textured quads
 
       pushMatrix(MODEL);
-      pos[0] = 40.0;
+      pos[0] = 55.0;
       pos[1] = 4.0;
       pos[2] = 45.0;
 
@@ -1586,7 +1660,7 @@ void renderMeshes() {
 
       l3dBillboardSphericalBegin(camh, pos);
 
-      // diffuse and ambient color are not used in the tree quads
+       // diffuse and ambient color are not used in the tree quads
       loc = glGetUniformLocation(shader.getProgramIndex(), "mat.specular");
       glUniform4fv(loc, 1, myMeshes[objId].mat.specular);
       loc = glGetUniformLocation(shader.getProgramIndex(), "mat.shininess");
@@ -1597,18 +1671,17 @@ void renderMeshes() {
       computeDerivedMatrix(PROJ_VIEW_MODEL);
 
       glUniformMatrix4fv(vm_uniformId, 1, GL_FALSE, mCompMatrix[VIEW_MODEL]);
-      glUniformMatrix4fv(pvm_uniformId, 1, GL_FALSE,
-                         mCompMatrix[PROJ_VIEW_MODEL]);
+      glUniformMatrix4fv(pvm_uniformId, 1, GL_FALSE, mCompMatrix[PROJ_VIEW_MODEL]);
       computeNormalMatrix3x3();
       glUniformMatrix3fv(normal_uniformId, 1, GL_FALSE, mNormal3x3);
       glBindVertexArray(myMeshes[objId].vao);
-      glDrawElements(myMeshes[objId].type, myMeshes[objId].numIndexes,
-                     GL_UNSIGNED_INT, 0);
+      glDrawElements(myMeshes[objId].type, myMeshes[objId].numIndexes,GL_UNSIGNED_INT, 0);
+      popMatrix(MODEL);
       popMatrix(MODEL);
       glDisable(GL_BLEND);
       break;
 
-    case 13: // SKYBOX
+    case 15: // SKYBOX
 
       glUniform1i(texMode_uniformId, 5);
 
@@ -2670,118 +2743,100 @@ void keyUp(unsigned char key, int x, int y) {
   //
 
   void init() {
-    srand(static_cast<unsigned>(time(0)));
+      srand(static_cast<unsigned>(time(0)));
 
-    MyMesh amesh;
+      MyMesh amesh;
 
-    for (int i = 0; i < 256; i++) {
-      keyStates[i] = false;
-    }
+      for (int i = 0; i < 256; i++) {
+          keyStates[i] = false;
+      }
 
-    /* Initialization of DevIL */
-    if (ilGetInteger(IL_VERSION_NUM) < IL_VERSION) {
-      printf("wrong DevIL version \n");
-      exit(0);
-    }
-    ilInit();
+      /* Initialization of DevIL */
+      if (ilGetInteger(IL_VERSION_NUM) < IL_VERSION) {
+          printf("wrong DevIL version \n");
+          exit(0);
+      }
+      ilInit();
 
-    /// Initialization of freetype library with font_name file
-    freeType_init(font_name);
+      /// Initialization of freetype library with font_name file
+      freeType_init(font_name);
 
-    // set the camera position based on its spherical coordinates
-    camX = r * sin(alpha * 3.14f / 180.0f) * cos(beta * 3.14f / 180.0f);
-    camZ = r * cos(alpha * 3.14f / 180.0f) * cos(beta * 3.14f / 180.0f);
-    camY = r * sin(beta * 3.14f / 180.0f);
+      // set the camera position based on its spherical coordinates
+      camX = r * sin(alpha * 3.14f / 180.0f) * cos(beta * 3.14f / 180.0f);
+      camZ = r * cos(alpha * 3.14f / 180.0f) * cos(beta * 3.14f / 180.0f);
+      camY = r * sin(beta * 3.14f / 180.0f);
 
-    glGenTextures(5, TextureArray);
-    Texture2D_Loader(TextureArray, "lightwood.tga", 0);
-    Texture2D_Loader(TextureArray, "road.jpg", 1);
-    Texture2D_Loader(TextureArray, "finishline.jpg", 2);
-    Texture2D_Loader(TextureArray, "particle.tga", 3);
-    Texture2D_Loader(TextureArray, "tree.tga", 4);
+      glGenTextures(5, TextureArray);
+      Texture2D_Loader(TextureArray, "lightwood.tga", 0);
+      Texture2D_Loader(TextureArray, "road.jpg", 1);
+      Texture2D_Loader(TextureArray, "finishline.jpg", 2);
+      Texture2D_Loader(TextureArray, "particle.tga", 3);
+      Texture2D_Loader(TextureArray, "tree.tga", 4);
 
-    // Flare elements textures
-    glGenTextures(5, FlareTextureArray);
-    Texture2D_Loader(FlareTextureArray, "crcl.tga", 0);
-    Texture2D_Loader(FlareTextureArray, "flar.tga", 1);
-    Texture2D_Loader(FlareTextureArray, "hxgn.tga", 2);
-    Texture2D_Loader(FlareTextureArray, "ring.tga", 3);
-    Texture2D_Loader(FlareTextureArray, "sun.tga", 4);
+      // Flare elements textures
+      glGenTextures(5, FlareTextureArray);
+      Texture2D_Loader(FlareTextureArray, "crcl.tga", 0);
+      Texture2D_Loader(FlareTextureArray, "flar.tga", 1);
+      Texture2D_Loader(FlareTextureArray, "hxgn.tga", 2);
+      Texture2D_Loader(FlareTextureArray, "ring.tga", 3);
+      Texture2D_Loader(FlareTextureArray, "sun.tga", 4);
 
-    const char *filenames[] = {"posx.jpg", "negx.jpg", "posy.jpg",
-                               "negy.jpg", "posz.jpg", "negz.jpg"};
-    TextureCubeMap_Loader(TextureArray, filenames, 5);
+      const char* filenames[] = { "posx.jpg", "negx.jpg", "posy.jpg",
+                                 "negy.jpg", "posz.jpg", "negz.jpg" };
+      TextureCubeMap_Loader(TextureArray, filenames, 5);
 
-    numRoads = CalcRoads();      // 176
-    printf("%d\n", numCheerios); // 141
+      numRoads = CalcRoads();      // 176
+      printf("%d\n", numCheerios); // 141
 
-    numRoads = CalcRoads();
-    // numCheerios = CalcCheerios();
+      numRoads = CalcRoads();
+      // numCheerios = CalcCheerios();
 
-    float amb[] = {0.2f, 0.15f, 0.1f, 1.0f};
-    float diff[] = {0.8f, 0.6f, 0.4f, 1.0f};
-    float spec[] = {0.8f, 0.8f, 0.8f, 1.0f};
-    float emissive[] = {0.0f, 0.0f, 0.0f, 1.0f};
-    float shininess = 100.0f;
-    int texcount = 0;
+      float amb[] = { 0.2f, 0.15f, 0.1f, 1.0f };
+      float diff[] = { 0.8f, 0.6f, 0.4f, 1.0f };
+      float spec[] = { 0.8f, 0.8f, 0.8f, 1.0f };
+      float emissive[] = { 0.0f, 0.0f, 0.0f, 1.0f };
+      float shininess = 100.0f;
+      int texcount = 0;
 
-    //// create geometry and VAO of the pawn
-    // amesh = createPawn();
-    // memcpy(amesh.mat.ambient, amb, 4 * sizeof(float));
-    // memcpy(amesh.mat.diffuse, diff, 4 * sizeof(float));
-    // memcpy(amesh.mat.specular, spec, 4 * sizeof(float));
-    // memcpy(amesh.mat.emissive, emissive, 4 * sizeof(float));
-    // amesh.mat.shininess = shininess;
-    // amesh.mat.texCount = texcount;
-    // myMeshes.push_back(amesh);
+      //// create geometry and VAO of the pawn
+      // amesh = createPawn();
+      // memcpy(amesh.mat.ambient, amb, 4 * sizeof(float));
+      // memcpy(amesh.mat.diffuse, diff, 4 * sizeof(float));
+      // memcpy(amesh.mat.specular, spec, 4 * sizeof(float));
+      // memcpy(amesh.mat.emissive, emissive, 4 * sizeof(float));
+      // amesh.mat.shininess = shininess;
+      // amesh.mat.texCount = texcount;
+      // myMeshes.push_back(amesh);
 
-    // float amb1[]= {0.3f, 0.0f, 1.0f, 0.0f};
-    // float diff1[] = {0.8f, 0.1f, 0.1f, 1.0f};
-    // float spec1[] = {0.9f, 0.9f, 0.9f, 1.0f};
-    // shininess=100.0;
+      // float amb1[]= {0.3f, 0.0f, 1.0f, 0.0f};
+      // float diff1[] = {0.8f, 0.1f, 0.1f, 1.0f};
+      // float spec1[] = {0.9f, 0.9f, 0.9f, 1.0f};
+      // shininess=100.0;
 
-    //// create geometry and VAO of the cylinder
-    // amesh = createCylinder(1.5f, 0.5f, 20);
-    // memcpy(amesh.mat.ambient, amb1, 4 * sizeof(float));
-    // memcpy(amesh.mat.diffuse, diff1, 4 * sizeof(float));
-    // memcpy(amesh.mat.specular, spec1, 4 * sizeof(float));
-    // memcpy(amesh.mat.emissive, emissive, 4 * sizeof(float));
-    // amesh.mat.shininess = shininess;
-    // amesh.mat.texCount = texcount;
-    // myMeshes.push_back(amesh);
+      //// create geometry and VAO of the cylinder
+      // amesh = createCylinder(1.5f, 0.5f, 20);
+      // memcpy(amesh.mat.ambient, amb1, 4 * sizeof(float));
+      // memcpy(amesh.mat.diffuse, diff1, 4 * sizeof(float));
+      // memcpy(amesh.mat.specular, spec1, 4 * sizeof(float));
+      // memcpy(amesh.mat.emissive, emissive, 4 * sizeof(float));
+      // amesh.mat.shininess = shininess;
+      // amesh.mat.texCount = texcount;
+      // myMeshes.push_back(amesh);
 
-    //// create geometry and VAO of the
-    // amesh = createCone(1.5f, 0.5f, 20);
-    // memcpy(amesh.mat.ambient, amb, 4 * sizeof(float));
-    // memcpy(amesh.mat.diffuse, diff, 4 * sizeof(float));
-    // memcpy(amesh.mat.specular, spec, 4 * sizeof(float));
-    // memcpy(amesh.mat.emissive, emissive, 4 * sizeof(float));
-    // amesh.mat.shininess = shininess;
-    // amesh.mat.texCount = texcount;
-    // myMeshes.push_back(amesh);
+      //// create geometry and VAO of the
+      // amesh = createCone(1.5f, 0.5f, 20);
+      // memcpy(amesh.mat.ambient, amb, 4 * sizeof(float));
+      // memcpy(amesh.mat.diffuse, diff, 4 * sizeof(float));
+      // memcpy(amesh.mat.specular, spec, 4 * sizeof(float));
+      // memcpy(amesh.mat.emissive, emissive, 4 * sizeof(float));
+      // amesh.mat.shininess = shininess;
+      // amesh.mat.texCount = texcount;
+      // myMeshes.push_back(amesh);
 
-    // create geometry and VAO of the cube
-    // TABLE  id = 0
-    amesh = createCube();
-    memcpy(amesh.mat.ambient, amb, 4 * sizeof(float));
-    memcpy(amesh.mat.diffuse, diff, 4 * sizeof(float));
-    memcpy(amesh.mat.specular, spec, 4 * sizeof(float));
-    memcpy(amesh.mat.emissive, emissive, 4 * sizeof(float));
-    amesh.mat.shininess = shininess;
-    amesh.mat.texCount = texcount;
-    myMeshes.push_back(amesh);
-    numObjects++;
-
-    float amb1[] = {0.3f, 0.0f, 0.0f, 1.0f};
-    float diff1[] = {0.8f, 0.1f, 0.1f, 1.0f};
-    float spec1[] = {0.0f, 0.9f, 0.9f, 1.0f};
-    shininess = 200.0;
-
-    float amb2[] = {1.0f, 0.647f, 0.0f, 1.0f};
-    // ORANGE  id = 1 to 5
-    for (int i = 0; i < numOranges; i++) {
-      amesh = createSphere(1.0f, 20);
-      memcpy(amesh.mat.ambient, amb2, 4 * sizeof(float));
+      // create geometry and VAO of the cube
+      // TABLE  id = 0
+      amesh = createCube();
+      memcpy(amesh.mat.ambient, amb, 4 * sizeof(float));
       memcpy(amesh.mat.diffuse, diff, 4 * sizeof(float));
       memcpy(amesh.mat.specular, spec, 4 * sizeof(float));
       memcpy(amesh.mat.emissive, emissive, 4 * sizeof(float));
@@ -2789,52 +2844,72 @@ void keyUp(unsigned char key, int x, int y) {
       amesh.mat.texCount = texcount;
       myMeshes.push_back(amesh);
       numObjects++;
-    }
 
-    // Car
-    float amb3[] = {0.0f, 0.0f, 0.0f, 0.0f};
-    float diff2[] = {0.0f, 0.0f, 0.0f, 1.0f};
-    float spec2[] = {0.9f, 0.9f, 0.9f, 1.0f};
-    for (int i = 0; i < 4; i++) {
-      // id = 6 to 9
-      amesh = createTorus(0.1f, 0.5f, 20, 20);
-      memcpy(amesh.mat.ambient, amb3, 4 * sizeof(float));
-      memcpy(amesh.mat.diffuse, diff2, 4 * sizeof(float));
-      memcpy(amesh.mat.specular, spec2, 4 * sizeof(float));
+      float amb1[] = { 0.3f, 0.0f, 0.0f, 1.0f };
+      float diff1[] = { 0.8f, 0.1f, 0.1f, 1.0f };
+      float spec1[] = { 0.0f, 0.9f, 0.9f, 1.0f };
+      shininess = 200.0;
+
+      float amb2[] = { 1.0f, 0.647f, 0.0f, 1.0f };
+      // ORANGE  id = 1 to 5
+      for (int i = 0; i < numOranges; i++) {
+          amesh = createSphere(1.0f, 20);
+          memcpy(amesh.mat.ambient, amb2, 4 * sizeof(float));
+          memcpy(amesh.mat.diffuse, diff, 4 * sizeof(float));
+          memcpy(amesh.mat.specular, spec, 4 * sizeof(float));
+          memcpy(amesh.mat.emissive, emissive, 4 * sizeof(float));
+          amesh.mat.shininess = shininess;
+          amesh.mat.texCount = texcount;
+          myMeshes.push_back(amesh);
+          numObjects++;
+      }
+
+      // Car
+      float amb3[] = { 0.0f, 0.0f, 0.0f, 0.0f };
+      float diff2[] = { 0.0f, 0.0f, 0.0f, 1.0f };
+      float spec2[] = { 0.9f, 0.9f, 0.9f, 1.0f };
+      for (int i = 0; i < 4; i++) {
+          // id = 6 to 9
+          amesh = createTorus(0.1f, 0.5f, 20, 20);
+          memcpy(amesh.mat.ambient, amb3, 4 * sizeof(float));
+          memcpy(amesh.mat.diffuse, diff2, 4 * sizeof(float));
+          memcpy(amesh.mat.specular, spec2, 4 * sizeof(float));
+          memcpy(amesh.mat.emissive, emissive, 4 * sizeof(float));
+          amesh.mat.shininess = shininess;
+          amesh.mat.texCount = texcount;
+          myMeshes.push_back(amesh);
+          numObjects++;
+      }
+      float amb4[] = { 0.0f, 1.0f, 0.647f, 0.0f };
+
+      // id = 10
+      amesh = createCube();
+      memcpy(amesh.mat.ambient, amb4, 4 * sizeof(float));
+      memcpy(amesh.mat.diffuse, diff, 4 * sizeof(float));
+      memcpy(amesh.mat.specular, spec, 4 * sizeof(float));
       memcpy(amesh.mat.emissive, emissive, 4 * sizeof(float));
       amesh.mat.shininess = shininess;
       amesh.mat.texCount = texcount;
       myMeshes.push_back(amesh);
       numObjects++;
-    }
-    float amb4[] = {0.0f, 1.0f, 0.647f, 0.0f};
 
-    // id = 10
-    amesh = createCube();
-    memcpy(amesh.mat.ambient, amb4, 4 * sizeof(float));
-    memcpy(amesh.mat.diffuse, diff, 4 * sizeof(float));
-    memcpy(amesh.mat.specular, spec, 4 * sizeof(float));
-    memcpy(amesh.mat.emissive, emissive, 4 * sizeof(float));
-    amesh.mat.shininess = shininess;
-    amesh.mat.texCount = texcount;
-    myMeshes.push_back(amesh);
-    numObjects++;
+      // id = 11
+      game.createFinishLine();
 
-    // id = 11
-    game.createFinishLine();
+      // create geometry and VAO of the quad for trees id = 12
+      // tree specular color
+      float tree_spec[] = { 0.2f, 0.2f, 0.2f, 1.0f };
+      float tree_shininess = 30.0f;
 
-    // create geometry and VAO of the quad for trees id = 12
-    // tree specular color
-    float tree_spec[] = {0.2f, 0.2f, 0.2f, 1.0f};
-    float tree_shininess = 30.0f;
-
-    amesh = createQuad(6, 6);
-    memcpy(amesh.mat.specular, tree_spec, 4 * sizeof(float));
-    memcpy(amesh.mat.emissive, emissive, 4 * sizeof(float));
-    amesh.mat.shininess = tree_shininess;
-    amesh.mat.texCount = texcount;
-    myMeshes.push_back(amesh);
-    numObjects++;
+      for (int i = 0; i < 3; i++){
+          amesh = createQuad(6, 6);
+          memcpy(amesh.mat.specular, tree_spec, 4 * sizeof(float));
+          memcpy(amesh.mat.emissive, emissive, 4 * sizeof(float));
+          amesh.mat.shininess = tree_shininess;
+          amesh.mat.texCount = texcount;
+          myMeshes.push_back(amesh);
+          numObjects++;
+  }
 
     // create geometry and VAO of the cube for skybox, objId=13;
     amesh = createCube();
