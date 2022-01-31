@@ -40,6 +40,46 @@
 #define MAX_PARTICULAS  1500
 #endif
 
+#ifndef __FLARE_H
+#define __FLARE_H
+
+/* --- Defines --- */
+
+#define FLARE_MAXELEMENTSPERFLARE         15
+#define NTEXTURES 5
+
+/* --- Types --- */
+
+typedef struct FLARE_ELEMENT_DEF {
+
+	float			fDistance;        // Distance along ray from source (0.0-1.0)
+	float           fSize;            // Size relative to flare envelope (0.0-1.0)
+	float			matDiffuse[4];  // color
+	int				textureId;
+} FLARE_ELEMENT_DEF;
+
+typedef struct FLARE_DEF {
+	float           fScale;     // Scale factor for adjusting overall size of flare elements.
+	float           fMaxSize;   // Max size of largest element, as proportion of screen width (0.0-1.0)
+	int             nPieces;    // Number of elements in use
+	FLARE_ELEMENT_DEF    element[FLARE_MAXELEMENTSPERFLARE];
+} FLARE_DEF;
+
+char* flareTextureNames[NTEXTURES] = { "crcl", "flar", "hxgn", "ring", "sun" };
+
+void    render_flare(FLARE_DEF* flare, int lx, int ly, int* m_viewport);
+void    loadFlareFile(FLARE_DEF* flare, char* filename);
+
+#endif
+
+inline double clamp(const double x, const double min, const double max) {
+	return (x < min ? min : (x > max ? max : x));
+}
+
+inline int clampi(const int x, const int min, const int max) {
+	return (x < min ? min : (x > max ? max : x));
+}
+
 static inline float
 DegToRad(float degrees)
 {
@@ -98,6 +138,7 @@ void keyOperations();
 GLint pvm_uniformId;
 GLint vm_uniformId;
 GLint normal_uniformId;
+GLint model_uniformId;
 GLint lPos_uniformId[6];
 GLint lDir_uniformId;
 GLint slDir_uniformId[2];
@@ -111,10 +152,17 @@ GLint slCutOffAngleTexture_uniformId;
 GLint is_fog_on_uniformId;
 GLint fog_maxdist_uniformId;
 
-GLint tex_loc, tex_loc1, tex_loc2, tex_loc3, tex_loc4;
+GLint tex_loc, tex_loc1, tex_loc2, tex_loc3, tex_loc4, tex_cube_loc;
 GLint texMode_uniformId;
 
-GLuint TextureArray[5];
+GLuint TextureArray[10];
+GLuint FlareTextureArray[5];
+
+//Flare effect
+FLARE_DEF AVTflare;
+float lightScreenPos[3];  //Position of the light in Window Coordinates
+
+bool flareEffect = false;
 
 // Camera Position
 float camX, camY, camZ;
@@ -782,6 +830,92 @@ void iniParticles(void)
 	}
 }
 
+void render_flare(FLARE_DEF* flare, int lx, int ly, int* m_viewport) {  //lx, ly represent the projected position of light on viewport
+
+	int     dx, dy;          // Screen coordinates of "destination"
+	int     px, py;          // Screen coordinates of flare element
+	int		cx, cy;
+	float    maxflaredist, flaredist, flaremaxsize, flarescale, scaleDistance;
+	int     width, height, alpha;    // Piece parameters;
+	int     i;
+	float	diffuse[4];
+
+	GLint loc;
+
+	glDisable(GL_DEPTH_TEST);
+	glDisable(GL_CULL_FACE);
+	glEnable(GL_BLEND);
+	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+
+	int screenMaxCoordX = m_viewport[0] + m_viewport[2] - 1;
+	int screenMaxCoordY = m_viewport[1] + m_viewport[3] - 1;
+
+	//viewport center
+	cx = m_viewport[0] + (int)(0.5f * (float)m_viewport[2]) - 1;
+	cy = m_viewport[1] + (int)(0.5f * (float)m_viewport[3]) - 1;
+
+	// Compute how far off-center the flare source is.
+	maxflaredist = sqrt(cx * cx + cy * cy);
+	flaredist = sqrt((lx - cx) * (lx - cx) + (ly - cy) * (ly - cy));
+	scaleDistance = (maxflaredist - flaredist) / maxflaredist;
+	flaremaxsize = (int)(m_viewport[2] * flare->fMaxSize);
+	flarescale = (int)(m_viewport[2] * flare->fScale);
+
+	// Destination is opposite side of centre from source
+	dx = clampi(cx + (cx - lx), m_viewport[0], screenMaxCoordX);
+	dy = clampi(cy + (cy - ly), m_viewport[1], screenMaxCoordY);
+
+	// Render each element. To be used Texture Unit 6
+
+	glUniform1i(texMode_uniformId, 3); // draw modulated textured particles 
+	glUniform1i(tex_loc, 6);  //use TU 6
+
+	for (i = 0; i < flare->nPieces; ++i)
+	{
+		// Position is interpolated along line between start and destination.
+		px = (int)((1.0f - flare->element[i].fDistance) * lx + flare->element[i].fDistance * dx);
+		py = (int)((1.0f - flare->element[i].fDistance) * ly + flare->element[i].fDistance * dy);
+		px = clampi(px, m_viewport[0], screenMaxCoordX);
+		py = clampi(py, m_viewport[1], screenMaxCoordY);
+
+		// Piece size are 0 to 1; flare size is proportion of screen width; scale by flaredist/maxflaredist.
+		width = (int)(scaleDistance * flarescale * flare->element[i].fSize);
+
+		// Width gets clamped, to allows the off-axis flaresto keep a good size without letting the elements get big when centered.
+		if (width > flaremaxsize)  width = flaremaxsize;
+
+		height = (int)((float)m_viewport[3] / (float)m_viewport[2] * (float)width);
+		memcpy(diffuse, flare->element[i].matDiffuse, 4 * sizeof(float));
+		diffuse[3] *= scaleDistance;   //scale the alpha channel
+
+		if (width > 1)
+		{
+			// send the material - diffuse color modulated with texture
+			loc = glGetUniformLocation(shader.getProgramIndex(), "mat.diffuse");
+			glUniform4fv(loc, 1, diffuse);
+
+			glActiveTexture(GL_TEXTURE0);
+			glBindTexture(GL_TEXTURE_2D, FlareTextureArray[flare->element[i].textureId]);
+			pushMatrix(MODEL);
+			translate(MODEL, (float)(px - width * 0.0f), (float)(py - height * 0.0f), 0.0f);
+			scale(MODEL, (float)width, (float)height, 1);
+			computeDerivedMatrix(PROJ_VIEW_MODEL);
+			glUniformMatrix4fv(vm_uniformId, 1, GL_FALSE, mCompMatrix[VIEW_MODEL]);
+			glUniformMatrix4fv(pvm_uniformId, 1, GL_FALSE, mCompMatrix[PROJ_VIEW_MODEL]);
+			computeNormalMatrix3x3();
+			glUniformMatrix3fv(normal_uniformId, 1, GL_FALSE, mNormal3x3);
+
+			glBindVertexArray(myMeshes[7].vao);
+			glDrawElements(myMeshes[7].type, myMeshes[7].numIndexes, GL_UNSIGNED_INT, 0);
+			glBindVertexArray(0);
+			popMatrix(MODEL);
+		}
+	}
+	glEnable(GL_DEPTH_TEST);
+	glEnable(GL_CULL_FACE);
+	glDisable(GL_BLEND);
+}
+
 void cam1() {
 	// Ortogonal Projection Top View Cam
 	// set the camera position based on its spherical coordinates
@@ -954,13 +1088,17 @@ void renderTextures() {
 	glActiveTexture(GL_TEXTURE4);
 	glBindTexture(GL_TEXTURE_2D, TextureArray[4]);
 
+	glActiveTexture(GL_TEXTURE5);
+	glBindTexture(GL_TEXTURE_CUBE_MAP, TextureArray[5]);
 
-	//Indicar aos tres samplers do GLSL quais os Texture Units a serem usados
+
+	//Indicar aos samplers do GLSL quais os Texture Units a serem usados
 	glUniform1i(tex_loc, 0);
 	glUniform1i(tex_loc1, 1);
 	glUniform1i(tex_loc2, 2);
 	glUniform1i(tex_loc3, 3);
 	glUniform1i(tex_loc4, 4);
+	glUniform1i(tex_cube_loc, 5);
 }
 
 void renderLights() {
@@ -1188,7 +1326,7 @@ void renderScene(void) {
 				game.renderFinishLine();
 				break;
 
-			case 12:
+			case 12: //TREE WITH BILLBOARDING
 
 				glEnable(GL_BLEND);
 				glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
@@ -1221,6 +1359,43 @@ void renderScene(void) {
 				popMatrix(MODEL);
 				glDisable(GL_BLEND);
 				break;
+
+
+			case 13:  //SKYBOX
+
+				glUniform1i(texMode_uniformId, 5);
+
+
+				//it won't write anything to the zbuffer; all subsequently drawn scenery to be in front of the sky box. 
+				glDepthMask(GL_FALSE);
+				glFrontFace(GL_CW); // set clockwise vertex order to mean the front
+
+				pushMatrix(MODEL);
+				pushMatrix(VIEW);  //se quiser anular a translação
+
+				//  Fica mais realista se não anular a translação da câmara 
+				// Cancel the translation movement of the camera - de acordo com o tutorial do Antons
+				mMatrix[VIEW][12] = 0.0f;
+				mMatrix[VIEW][13] = 0.0f;
+				mMatrix[VIEW][14] = 0.0f;
+
+				scale(MODEL, 200.0f, 20.0f, 200.0f);
+				translate(MODEL, -0.5f, -0.5f, -0.5f);
+
+				// send matrices to OGL
+				glUniformMatrix4fv(model_uniformId, 1, GL_FALSE, mMatrix[MODEL]); //Transformação de modelação do cubo unitário para o "Big Cube"
+				computeDerivedMatrix(PROJ_VIEW_MODEL);
+				glUniformMatrix4fv(pvm_uniformId, 1, GL_FALSE, mCompMatrix[PROJ_VIEW_MODEL]);
+
+				glBindVertexArray(myMeshes[objId].vao);
+				glDrawElements(myMeshes[objId].type, myMeshes[objId].numIndexes, GL_UNSIGNED_INT, 0);
+				glBindVertexArray(0);
+				popMatrix(MODEL);
+				popMatrix(VIEW);
+
+				glFrontFace(GL_CCW); // restore counter clockwise vertex order to mean the front
+				glDepthMask(GL_TRUE);
+
 			};
 
 
@@ -1235,7 +1410,7 @@ void renderScene(void) {
 			if (objId == 0) glUniform1i(texMode_uniformId, 0);
 			else if (objId == 11) glUniform1i(texMode_uniformId, 2);
 			else if (objId == 12) glUniform1i(texMode_uniformId, 4);
-			else glUniform1i(texMode_uniformId, 5);
+			else glUniform1i(texMode_uniformId, 6);
 
 			glBindVertexArray(myMeshes[objId].vao);
 
@@ -1285,7 +1460,7 @@ void renderScene(void) {
 			glUniformMatrix3fv(normal_uniformId, 1, GL_FALSE, mNormal3x3);
 
 			// Render mesh
-			glUniform1i(texMode_uniformId, 5);
+			glUniform1i(texMode_uniformId, 6);
 			glBindVertexArray(myMeshes[objId].vao);
 
 			if (!shader.isProgramValid()) {
@@ -1415,7 +1590,7 @@ void renderScene(void) {
 		// draw fireworks particles
 		int objId = 20;  //quad for particle
 
-		glBindTexture(GL_TEXTURE_2D, TextureArray[3]); //particle.tga associated to TU0 
+		glBindTexture(GL_TEXTURE_2D, TextureArray[3]); //particle.tga associated to TU3 
 
 		glEnable(GL_BLEND);
 		glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
@@ -1468,8 +1643,33 @@ void renderScene(void) {
 
 	}
 
-	
+	if (flareEffect) {
 
+		int flarePos[2];
+		int m_viewport[4];
+		glGetIntegerv(GL_VIEWPORT, m_viewport);
+
+		pushMatrix(MODEL);
+		loadIdentity(MODEL);
+		computeDerivedMatrix(PROJ_VIEW_MODEL);  //pvm to be applied to lightPost. pvm is used in project function
+
+		if (!project(lightPos[0], lightScreenPos, m_viewport))
+			printf("Error in getting projected light in screen\n");  //Calculate the window Coordinates of the light position: the projected position of light on viewport
+		flarePos[0] = clampi((int)lightScreenPos[0], m_viewport[0], m_viewport[0] + m_viewport[2] - 1);
+		flarePos[1] = clampi((int)lightScreenPos[1], m_viewport[1], m_viewport[1] + m_viewport[3] - 1);
+		popMatrix(MODEL);
+
+		//viewer looking down at  negative z direction
+		pushMatrix(PROJECTION);
+		loadIdentity(PROJECTION);
+		pushMatrix(VIEW);
+		loadIdentity(VIEW);
+		ortho(m_viewport[0], m_viewport[0] + m_viewport[2] - 1, m_viewport[1], m_viewport[1] + m_viewport[3] - 1, -1, 1);
+		render_flare(&AVTflare, flarePos[0], flarePos[1], m_viewport);
+		popMatrix(PROJECTION);
+		popMatrix(VIEW);
+	}
+	
 	//Render text (bitmap fonts) in screen coordinates. So use ortoghonal projection with viewport coordinates.
 	glDisable(GL_DEPTH_TEST);
 	//the glyph contains background colors and non-transparent for the actual character pixels. So we use the blending
@@ -1804,6 +2004,11 @@ void keyUp(unsigned char key, int x, int y) {
 		iniParticles();
 		break;
 
+	case 'l':
+		if (flareEffect) flareEffect = false;
+		else flareEffect = true;
+		break;
+
 	default:
 		cout << "tecla carregada = " << key;
 		break;
@@ -1941,7 +2146,7 @@ GLuint setupShaders() {
 	glBindFragDataLocation(shader.getProgramIndex(), 0, "colorOut");
 	glBindAttribLocation(shader.getProgramIndex(), VERTEX_COORD_ATTRIB, "position");
 	glBindAttribLocation(shader.getProgramIndex(), NORMAL_ATTRIB, "normal");
-	//glBindAttribLocation(shader.getProgramIndex(), TEXTURE_COORD_ATTRIB, "texCoord");
+	glBindAttribLocation(shader.getProgramIndex(), TEXTURE_COORD_ATTRIB, "texCoord");
 
 	glLinkProgram(shader.getProgramIndex());
 
@@ -1950,6 +2155,7 @@ GLuint setupShaders() {
 	pvm_uniformId = glGetUniformLocation(shader.getProgramIndex(), "m_pvm");
 	vm_uniformId = glGetUniformLocation(shader.getProgramIndex(), "m_viewModel");
 	normal_uniformId = glGetUniformLocation(shader.getProgramIndex(), "m_normal");
+	model_uniformId = glGetUniformLocation(shader.getProgramIndex(), "m_Model");
 
 	lPos_uniformId[0] = glGetUniformLocation(shader.getProgramIndex(), "l_pos[0]");
 	lPos_uniformId[1] = glGetUniformLocation(shader.getProgramIndex(), "l_pos[1]");
@@ -1981,6 +2187,8 @@ GLuint setupShaders() {
 	tex_loc2 = glGetUniformLocation(shader.getProgramIndex(), "texmap2");
 	tex_loc3 = glGetUniformLocation(shader.getProgramIndex(), "texmap3");
 	tex_loc4 = glGetUniformLocation(shader.getProgramIndex(), "texmap4");
+	tex_cube_loc = glGetUniformLocation(shader.getProgramIndex(), "cubeMap");
+
 
 	printf("InfoLog for Per Fragment Phong Lightning Shader\n%s\n\n", shader.getAllInfoLogs().c_str());
 
@@ -2053,6 +2261,17 @@ void init()
 	Texture2D_Loader(TextureArray, "finishline.jpg", 2);
 	Texture2D_Loader(TextureArray, "particle.tga", 3);
 	Texture2D_Loader(TextureArray, "tree.tga", 4);
+
+	//Flare elements textures
+	glGenTextures(5, FlareTextureArray);
+	Texture2D_Loader(FlareTextureArray, "crcl.tga", 0);
+	Texture2D_Loader(FlareTextureArray, "flar.tga", 1);
+	Texture2D_Loader(FlareTextureArray, "hxgn.tga", 2);
+	Texture2D_Loader(FlareTextureArray, "ring.tga", 3);
+	Texture2D_Loader(FlareTextureArray, "sun.tga", 4);
+
+	const char* filenames[] = { "posx.jpg", "negx.jpg", "posy.jpg", "negy.jpg", "posz.jpg", "negz.jpg" };
+	TextureCubeMap_Loader(TextureArray, filenames, 5);
 
 
 	numRoads = CalcRoads();  // 176
@@ -2184,7 +2403,19 @@ void init()
 	myMeshes.push_back(amesh);
 	numObjects++;
 
-	//Butter = 12 to 16
+	// create geometry and VAO of the cube for skybox, objId=13;
+	amesh = createCube();
+	memcpy(amesh.mat.ambient, amb, 4 * sizeof(float));
+	memcpy(amesh.mat.diffuse, diff, 4 * sizeof(float));
+	memcpy(amesh.mat.specular, spec, 4 * sizeof(float));
+	memcpy(amesh.mat.emissive, emissive, 4 * sizeof(float));
+	amesh.mat.shininess = shininess;
+	amesh.mat.texCount = texcount;
+	myMeshes.push_back(amesh);
+	numObjects++;
+
+
+	//Butter = 15 to 19
 	for (int i = 0; i < numButter; i++) {
 		amesh = createCube();
 		memcpy(amesh.mat.ambient, amb4, 4 * sizeof(float));
@@ -2197,7 +2428,7 @@ void init()
 		//numObjects++;
 	};
 
-	// ROAD 17 to 192
+	// ROAD 20 to 195
 	for (int i = 0; i < numRoads; i++) {
 		amesh = createCube();
 		memcpy(amesh.mat.ambient, amb1, 4 * sizeof(float));
@@ -2210,7 +2441,7 @@ void init()
 		//numObjects++;
 	};
 
-	// Cheerios 193 to 333
+	// Cheerios 196 to 336
 	for (int i = 0; i < numCheerios; i++) {
 
 		amesh = createTorus(0.1f, 0.5f, 20, 20);
@@ -2236,18 +2467,28 @@ void init()
 		}
 	}
 
-	// create geometry and VAO of the quad for particles id = 334
+	// create geometry and VAO of the quad for particles id = 338
 	amesh = createQuad(2, 2);
 	amesh.mat.texCount = texcount;
 	myMeshes.push_back(amesh);
 	//numObjects++;
 
+	// create geometry and VAO of the quad for flare elements objId = 14
+	amesh = createQuad(1, 1);
+	myMeshes.push_back(amesh);
+
+	//Load flare from file
+	loadFlareFile(&AVTflare, "flare.txt");
+
 
 
 	// some GL settings
-	//glEnable(GL_DEPTH_TEST);
+	glEnable(GL_DEPTH_TEST);
 	glEnable(GL_CULL_FACE);
+	glCullFace(GL_BACK);
+	glFrontFace(GL_CCW); // set counter-clockwise vertex order to mean the front
 	glEnable(GL_MULTISAMPLE);
+	glEnable(GL_TEXTURE_CUBE_MAP_SEAMLESS);
 	glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
 
 
@@ -2315,3 +2556,59 @@ int main(int argc, char** argv) {
 
 	return(0);
 }
+
+unsigned int getTextureId(char* name) {
+	int i;
+
+	for (i = 0; i < NTEXTURES; ++i)
+	{
+		if (strncmp(name, flareTextureNames[i], strlen(name)) == 0)
+			return i;
+	}
+	return -1;
+}
+
+void    loadFlareFile(FLARE_DEF* flare, char* filename)
+{
+	int     n = 0;
+	FILE* f;
+	char    buf[256];
+	int fields;
+
+	memset(flare, 0, sizeof(FLARE_DEF));
+
+	f = fopen(filename, "r");
+	if (f)
+	{
+		fgets(buf, sizeof(buf), f);
+		sscanf(buf, "%f %f", &flare->fScale, &flare->fMaxSize);
+
+		while (!feof(f))
+		{
+			char            name[8] = { '\0', };
+			double          dDist = 0.0, dSize = 0.0;
+			float			color[4];
+			int				id;
+
+			fgets(buf, sizeof(buf), f);
+			fields = sscanf(buf, "%4s %lf %lf ( %f %f %f %f )", name, &dDist, &dSize, &color[3], &color[0], &color[1], &color[2]);
+			if (fields == 7)
+			{
+				for (int i = 0; i < 4; ++i) color[i] = clamp(color[i] / 255.0f, 0.0f, 1.0f);
+				id = getTextureId(name);
+				if (id < 0) printf("Texture name not recognized\n");
+				else
+					flare->element[n].textureId = id;
+				flare->element[n].fDistance = (float)dDist;
+				flare->element[n].fSize = (float)dSize;
+				memcpy(flare->element[n].matDiffuse, color, 4 * sizeof(float));
+				++n;
+			}
+		}
+
+		flare->nPieces = n;
+		fclose(f);
+	}
+	else printf("Flare file opening error\n");
+}
+

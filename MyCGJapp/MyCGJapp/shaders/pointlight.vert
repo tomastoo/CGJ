@@ -3,6 +3,8 @@
 uniform mat4 m_pvm;
 uniform mat4 m_viewModel;
 uniform mat3 m_normal;
+uniform mat4 m_Model;   //por causa do cubo para a skybox
+
 
 // POINT LIGHTS
 uniform vec4 l_pos[6];
@@ -32,6 +34,8 @@ out Data {
 	vec3 TextureSpotlight;
 	flat int lights[3];
 	vec2 tex_coord;
+	vec3 skyboxTexCoord;
+
 } DataOut;
 
 out vec3 vertex_color;
@@ -39,6 +43,10 @@ out vec3 vertex_color;
 void main () {
 
 	vec4 pos = m_viewModel * position;
+
+	DataOut.skyboxTexCoord = vec3(m_Model * position);	//Transformação de modelação do cubo unitário 
+	DataOut.skyboxTexCoord.x = - DataOut.skyboxTexCoord.x; //Texturas mapeadas no interior logo negar a coordenada x
+	DataOut.tex_coord = texCoord.st;
 
 	DataOut.normal = normalize(m_normal * normal.xyz);
 	DataOut.DirectionalLight = vec3(l_dir);

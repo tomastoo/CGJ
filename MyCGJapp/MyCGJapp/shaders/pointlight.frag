@@ -18,6 +18,8 @@ uniform sampler2D texmap1;
 uniform sampler2D texmap2;
 uniform sampler2D texmap3;
 uniform sampler2D texmap4;
+uniform samplerCube cubeMap;
+
 uniform int texMode;
 
 uniform vec4 sl_dir[2];
@@ -39,6 +41,7 @@ in Data {
 	vec3 TextureSpotlight;
 	flat int lights[3];
 	vec2 tex_coord;
+	vec3 skyboxTexCoord;
 } DataIn;
 
 vec4 calcFog(vec3 position){
@@ -139,7 +142,7 @@ void main() {
 		colorOut = max(intensity_spec[0]*texel + intensity_spec[1], 0.07*texel)+ vec4(0.1, 0.1, 0.1, 0);
 		}
 	}
-	else if (texMode == 3) 	// modulated texture for particle
+	else if (texMode == 3) 	// modulated texture for particle (texel3 color)
 	{
 		texel = texture(texmap3, DataIn.tex_coord);    //texel from particle.tga
 
@@ -157,6 +160,17 @@ void main() {
 		else 
 			colorOut = vec4(max(intensity_spec[0]*texel.rgb + intensity_spec[1], 0.1*texel.rgb), texel.a);
 		}
+
+	else if (texMode == 5) //SkyBox
+	{
+		texel = texture(cubeMap, DataIn.skyboxTexCoord);
+
+		if (texel.a == 0.0) discard;
+
+		else 
+			colorOut = texel;
+		}
+
 
 	else{
 		if (intensity_spec[0] > 0){
