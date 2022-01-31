@@ -904,9 +904,9 @@ void iniParticles(void) {
     phi = frand() * M_PI;
     theta = 2.0 * frand() * M_PI;
 
-    particula[i].x = 25.0f;
-    particula[i].y = 10.0f;
-    particula[i].z = 25.0f;
+    particula[i].x = tableX - 5;
+    particula[i].y = 5.0f;
+    particula[i].z = tableZ - 5;
     particula[i].vx = v * cos(theta) * sin(phi);
     particula[i].vy = v * cos(phi);
     particula[i].vz = v * sin(theta) * sin(phi);
@@ -1946,8 +1946,18 @@ void renderScene(void) {
 
   // Render text (bitmap fonts) in screen coordinates. So use ortoghonal
   // projection with viewport coordinates.
+  if (game.isFinished && game.win) {
+      if (fireworks == 0) {
+          iniParticles();
+          fireworks = 1;
+      }
+  }
 
   if (fireworks) {
+
+
+    printf("entrei \n");
+
     updateParticles();
 
     // draw fireworks particles
@@ -2386,6 +2396,7 @@ void keyUp(unsigned char key, int x, int y) {
                 game.lives += 1;
                 game.points += 10;
                 game.finishGame(false);
+                fireworks = 0;
             }
             break;
         case '1':
