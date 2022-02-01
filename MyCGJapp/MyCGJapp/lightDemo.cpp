@@ -14,6 +14,7 @@
 #include <math.h>
 #include <iostream>
 #include <sstream>
+#include <fstream>
 #include <string>
 
 // include GLEW to access OpenGL 3.3 functions
@@ -25,6 +26,9 @@
 
 #include <IL/il.h>
 
+// assimp include files. These three are usually needed.
+#include "assimp/Importer.hpp"	//OO version Header!
+#include "assimp/scene.h"
 
 // Use Very Simple Libs
 #include "VSShaderlib.h"
@@ -34,9 +38,29 @@
 #include "Texture_Loader.h"
 #include "avtFreeType.h"
 
+
+#include "meshFromAssimp.h"
+using namespace std;
+
 #ifdef _WIN32
 #define M_PI       3.14159265358979323846f
 #endif
+
+/* IMPORTANT: Use the next data to make this Assimp demo to work*/
+
+// Created an instance of the Importer class in the meshFromAssimp.cpp file
+Assimp::Importer importer;
+Assimp::Importer importerOrange;
+// the global Assimp scene object
+const aiScene* scene;
+const aiScene* sceneOrange;
+char model_dir[50];  //initialized by the user input at the console
+char model_dirO[50];
+
+// scale factor for the Assimp model to fit in the window
+extern float scaleFactor;
+
+
 
 static inline float
 DegToRad(float degrees)
@@ -45,6 +69,8 @@ DegToRad(float degrees)
 };
 
 using namespace std;
+
+bool normalMapKey = TRUE; // by default if there is a normal map then bump effect is implemented. press key "b" to enable/disable normal mapping 
 
 #define CAPTION "CGJ Demo: Phong Shading and Text rendered with FreeType"
 int WindowHandle = 0;
@@ -62,6 +88,8 @@ const string font_name = "fonts/arial.ttf";
 
 //Vector with meshes
 vector<struct MyMesh> myMeshes;
+vector<struct MyMesh> myMeshes2;
+vector<struct MyMesh> myMeshes3;
 
 //External array storage defined in AVTmathLib.cpp
 
@@ -70,6 +98,11 @@ extern float mMatrix[COUNT_MATRICES][16];
 extern float mCompMatrix[COUNT_COMPUTED_MATRICES][16];
 /// The normal matrix
 extern float mNormal3x3[9];
+
+
+GLint normalMap_loc;
+GLint specularMap_loc;
+GLint diffMapCount_loc;
 
 /// Array of boolean values of length 256 (0-255)
 bool* keyStates = new bool[256];
@@ -241,12 +274,12 @@ struct Spotlight
 };
 class Car {
 public:
-	float position[3] = { 0.0f, 0.0f, 0.0f };
+	float position[3] = { 2.0f, 0.0f, 1.0f };
 	float minVelocity = 0.0f;
 	float maxVelocity = 0.01f;
 	float velocity = 0.0f;
 	float direction[4] = { 1.0f, 0.0f, 0.0f, 0.0f };
-	float directionAngle = 0;
+	float directionAngle = 90;
 	float rotationAngle = 1.5f;
 	float isForward = true;
 	struct Spotlight* spotlights[2];
@@ -327,10 +360,13 @@ public:
 	void reset() {
 		direction[0] = 1;
 		for (int i = 0; i < 3; i++) {
-			position[i] = 0;
+			if(i==2){ position[i] = 0; }
+			
 			direction[i + 1] = 0;
 		}
-		directionAngle = 0;
+		position[0] = 2.0f;
+		position[2] = 1.0f;
+		directionAngle = 90;
 		alpha_cam3 = -90.0f;
 		beta_cam3 = 0.0f;
 		isForward = true;
@@ -912,6 +948,113 @@ void renderLights() {
 // Render stufff
 //
 
+// Recursive render of the Assimp Scene Graph
+
+void aiRecursive_render(const aiScene* sc, const aiNode* nd, vector<struct MyMesh> myMeshes)
+{
+	GLint loc;
+
+	// Get node transformation matrix
+	aiMatrix4x4 m = nd->mTransformation;
+	// OpenGL matrices are column major
+	m.Transpose();
+
+	// save model matrix and apply node transformation
+	pushMatrix(MODEL);
+
+	float aux[16];
+	memcpy(aux, &m, sizeof(float) * 16);
+	multMatrix(MODEL, aux);
+
+	//printf("size: %d\n", nd->mNumMeshes);
+	// draw all meshes assigned to this node
+	for (unsigned int n = 0; n < nd->mNumMeshes; ++n) {
+
+
+		// send the material
+		loc = glGetUniformLocation(shader.getProgramIndex(), "mat.ambient");
+		glUniform4fv(loc, 1, myMeshes[nd->mMeshes[n]].mat.ambient);
+		loc = glGetUniformLocation(shader.getProgramIndex(), "mat.diffuse");
+		glUniform4fv(loc, 1, myMeshes[nd->mMeshes[n]].mat.diffuse);
+		loc = glGetUniformLocation(shader.getProgramIndex(), "mat.specular");
+		glUniform4fv(loc, 1, myMeshes[nd->mMeshes[n]].mat.specular);
+		loc = glGetUniformLocation(shader.getProgramIndex(), "mat.emissive");
+		glUniform4fv(loc, 1, myMeshes[nd->mMeshes[n]].mat.emissive);
+		loc = glGetUniformLocation(shader.getProgramIndex(), "mat.shininess");
+		glUniform1f(loc, myMeshes[nd->mMeshes[n]].mat.shininess);
+		loc = glGetUniformLocation(shader.getProgramIndex(), "mat.texCount");
+		glUniform1i(loc, myMeshes[nd->mMeshes[n]].mat.texCount);
+
+		unsigned int  diffMapCount = 0;  //read 2 diffuse textures
+
+		//devido ao fragment shader suporta 2 texturas difusas simultaneas, 1 especular e 1 normal map
+
+		glUniform1i(normalMap_loc, false);   //GLSL normalMap variable initialized to 0
+		glUniform1i(specularMap_loc, false);
+		glUniform1ui(diffMapCount_loc, 0);
+		
+		if (myMeshes[nd->mMeshes[n]].mat.texCount != 0)
+			for (unsigned int i = 0; i < myMeshes[nd->mMeshes[n]].mat.texCount; ++i) {
+				printf("dddddddddddd\n");
+				if (myMeshes[nd->mMeshes[n]].texTypes[i] == DIFFUSE) {
+					if (diffMapCount == 0) {
+						diffMapCount++;
+						loc = glGetUniformLocation(shader.getProgramIndex(), "texUnitDiff");
+						glUniform1i(loc, myMeshes[nd->mMeshes[n]].texUnits[i]);
+						glUniform1ui(diffMapCount_loc, diffMapCount);
+					}
+					else if (diffMapCount == 1) {
+						diffMapCount++;
+						loc = glGetUniformLocation(shader.getProgramIndex(), "texUnitDiff1");
+						glUniform1i(loc, myMeshes[nd->mMeshes[n]].texUnits[i]);
+						glUniform1ui(diffMapCount_loc, diffMapCount);
+					}
+					else printf("Only supports a Material with a maximum of 2 diffuse textures\n");
+				}
+				else if (myMeshes[nd->mMeshes[n]].texTypes[i] == SPECULAR) {
+					loc = glGetUniformLocation(shader.getProgramIndex(), "texUnitSpec");
+					glUniform1i(loc, myMeshes[nd->mMeshes[n]].texUnits[i]);
+					glUniform1i(specularMap_loc, true);
+				}
+				else if (myMeshes[nd->mMeshes[n]].texTypes[i] == NORMALS) { //Normal map
+					loc = glGetUniformLocation(shader.getProgramIndex(), "texUnitNormalMap");
+					if (normalMapKey)
+						glUniform1i(normalMap_loc, normalMapKey);
+					glUniform1i(loc, myMeshes[nd->mMeshes[n]].texUnits[i]);
+
+				}
+				else printf("Texture Map not supported\n");
+			}
+			
+		//scale(MODEL, 4, 2, 4);
+		//translate(MODEL, 30, 2, 30);
+
+		// send matrices to OGL
+		computeDerivedMatrix(PROJ_VIEW_MODEL);
+		glUniformMatrix4fv(vm_uniformId, 1, GL_FALSE, mCompMatrix[VIEW_MODEL]);
+		glUniformMatrix4fv(pvm_uniformId, 1, GL_FALSE, mCompMatrix[PROJ_VIEW_MODEL]);
+		computeNormalMatrix3x3();
+		glUniformMatrix3fv(normal_uniformId, 1, GL_FALSE, mNormal3x3);
+
+		// bind VAO
+		glBindVertexArray(myMeshes[nd->mMeshes[n]].vao);
+
+		if (!shader.isProgramValid()) {
+			printf("Program Not Valid!\n");
+			exit(1);
+		}
+		// draw
+		glDrawElements(myMeshes[nd->mMeshes[n]].type, myMeshes[nd->mMeshes[n]].numIndexes, GL_UNSIGNED_INT, 0);
+		glBindVertexArray(0);
+	}
+
+	// draw all children
+	for (unsigned int n = 0; n < nd->mNumChildren; ++n) {
+		aiRecursive_render(sc, nd->mChildren[n], myMeshes2);
+	}
+	popMatrix(MODEL);
+}
+
 void renderScene(void) {
 
 	keyOperations();
@@ -950,11 +1093,21 @@ void renderScene(void) {
 		}
 		game.checkFinish(q, p);
 		game.colisionButterCheerio(q, p);
+
+		//test car
+		// sets the model matrix to a scale matrix so that the model fits in the window
+		
+
+		
+
 		int objId = 0; //id of the object mesh - to be used as index of mesh: Mymeshes[objID] means the current mesh
+		//printf("onde comeca: %d\n", scene->mRootNode->mNumMeshes);
 		for (int i = 0; i < numObjects; ++i) {
 			//		for (int j = 0; j < 2; ++j) {
 
 						// send the material
+			
+
 			loc = glGetUniformLocation(shader.getProgramIndex(), "mat.ambient");
 			glUniform4fv(loc, 1, myMeshes[objId].mat.ambient);
 			loc = glGetUniformLocation(shader.getProgramIndex(), "mat.diffuse");
@@ -993,6 +1146,7 @@ void renderScene(void) {
 				//orange
 				game.orange[objId - 1].renderOrange();
 				break;
+			/*
 			case 6:
 				//car wheel torus RIGHT TOP
 				translate(MODEL, position[0] + (carBodyZ)*sin(DegToRad(game.car.directionAngle)) + (carBodyX - jointCarGap) * cos(DegToRad(game.car.directionAngle)), position[1] + torusY, position[2] + carBodyZ * cos(DegToRad(game.car.directionAngle)) - (carBodyX - jointCarGap) * sin(DegToRad(game.car.directionAngle)));
@@ -1029,10 +1183,11 @@ void renderScene(void) {
 				rotate(MODEL, game.car.directionAngle, 0.0f, 1.0f, 0.0f);
 				scale(MODEL, carBodyX, 0.5, carBodyZ);
 				break;
-
-			case 11:
+				*/
+			case 6:
 				game.renderFinishLine();
 				break;
+
 			};
 
 
@@ -1061,6 +1216,7 @@ void renderScene(void) {
 			objId++;
 			//}
 		}
+		
 
 		for (int y = 0; y < numButter; y++) {
 			// send the material
@@ -1225,7 +1381,29 @@ void renderScene(void) {
 				objId++;
 			}
 		}
+		
 	}
+	//orange
+	translate(MODEL, 30.0f, 2.0f, 30.0f);
+	pushMatrix(MODEL);
+	aiRecursive_render(sceneOrange, sceneOrange->mRootNode, myMeshes3);
+	popMatrix(MODEL);
+	//popMatrix(MODEL);
+
+	//car
+	float* position = game.car.position;
+
+	//rotate(MODEL, 90.0f, 0.0f, 1.0f, 0.0f);
+	//scale(MODEL, 2/3, 2/3, 2/3);
+	translate(MODEL, position[0], position[1] + 1, position[2]);
+	rotate(MODEL, game.car.directionAngle, 0.0f, 1.0f, 0.0f);
+	//pushMatrix(MODEL);
+	aiRecursive_render(scene, scene->mRootNode, myMeshes2);
+
+	
+
+
+
 
 	//Render text (bitmap fonts) in screen coordinates. So use ortoghonal projection with viewport coordinates.
 	glDisable(GL_DEPTH_TEST);
@@ -1846,6 +2024,9 @@ void init()
 	//amesh.mat.texCount = texcount;
 	//myMeshes.push_back(amesh);
 
+
+
+
 	// create geometry and VAO of the cube
 	// TABLE
 	amesh = createCube();
@@ -1869,6 +2050,35 @@ void init()
 	float amb2[] = { 1.0f, 0.647f, 0.0f, 1.0f };
 	// ORANGE
 	for (int i = 0; i < numOranges; i++) {
+		/*
+		//test car
+		std::string filepath;
+
+		strncpy(model_dir, "Orange", sizeof(model_dir) - 1);
+		//bj << "backpack";
+		std::ostringstream oss;
+		oss << model_dir << "/" << model_dir << ".obj";
+		filepath = oss.str();   //path of OBJ file in the VS project
+
+		strcat(model_dir, "/");  //directory path in the VS project
+
+		//check if file exists
+		ifstream fin(filepath.c_str());
+		if (!fin.fail()) {
+			fin.close();
+			printf("deu merda");
+		}
+		else
+			printf("Couldn't open file: %s\n", filepath.c_str());
+
+		if (!Import3DFromFile(filepath))
+			return;
+		//creation of Mymesh array with VAO Geometry and Material
+		std::vector<struct MyMesh> myMeshes2 = createMeshFromAssimp(scene);
+		myMeshes.insert(myMeshes.end(), myMeshes2.begin(), myMeshes2.end());
+		numObjects++;
+		*/
+		
 		amesh = createSphere(1.0f, 20);
 		memcpy(amesh.mat.ambient, amb2, 4 * sizeof(float));
 		memcpy(amesh.mat.diffuse, diff, 4 * sizeof(float));
@@ -1878,12 +2088,15 @@ void init()
 		amesh.mat.texCount = texcount;
 		myMeshes.push_back(amesh);
 		numObjects++;
+		
 	}
-
-	// Car
 	float amb3[] = { 0.0f, 0.0f, 0.0f, 0.0f };
 	float diff2[] = { 0.0f, 0.0f, 0.0f, 1.0f };
 	float spec2[] = { 0.9f, 0.9f, 0.9f, 1.0f };
+	float amb4[] = { 0.0f, 1.0f, 0.647f, 0.0f };
+	/*
+	// Car
+
 	for (int i = 0; i < 4; i++) {
 		amesh = createTorus(0.1f, 0.5f, 20, 20);
 		memcpy(amesh.mat.ambient, amb3, 4 * sizeof(float));
@@ -1895,7 +2108,7 @@ void init()
 		myMeshes.push_back(amesh);
 		numObjects++;
 	}
-	float amb4[] = { 0.0f, 1.0f, 0.647f, 0.0f };
+	
 	amesh = createCube();
 	memcpy(amesh.mat.ambient, amb4, 4 * sizeof(float));
 	memcpy(amesh.mat.diffuse, diff, 4 * sizeof(float));
@@ -1905,9 +2118,11 @@ void init()
 	amesh.mat.texCount = texcount;
 	myMeshes.push_back(amesh);
 	numObjects++;
-
+	*/
 	game.createFinishLine();
-
+	
+	
+	
 	//Butter
 	for (int i = 0; i < numButter; i++) {
 		amesh = createCube();
@@ -1959,7 +2174,68 @@ void init()
 
 		}
 	}
+	
+	//test assimp
+	std::string filepath;
 
+	strncpy(model_dir, "free_car_001", sizeof(model_dir) - 1);
+	//bj << "backpack";
+	std::ostringstream oss;
+	oss << model_dir << "/" << model_dir << ".obj";
+	filepath = oss.str();   //path of OBJ file in the VS project
+
+	strcat(model_dir, "/");  //directory path in the VS project
+
+	//check if file exists
+	ifstream fin(filepath.c_str());
+	if (!fin.fail()) {
+		fin.close();
+		printf("correu bem\n");
+	}
+	else
+		printf("Couldn't open file: %s\n", filepath.c_str());
+
+	if (!Import3DFromFile(filepath, &scene, importer))
+		return;
+	//creation of Mymesh array with VAO Geometry and Material
+	myMeshes2 = createMeshFromAssimp(scene, model_dir);
+
+	//myMeshes.insert(myMeshes.end(), myMeshes2.begin(), myMeshes2.end());
+	//numObjects++;
+	printf("tamanho: %d\n", myMeshes.size());
+
+	printf("tamanho scene : %d\n", scene->mRootNode->mNumMeshes);
+	
+	
+	//oranges
+	strncpy(model_dirO, "Orange", sizeof(model_dirO) - 1);
+	//bj << "backpack";
+	std::ostringstream oss2;
+	oss2 << model_dirO << "/" << model_dirO << ".obj";
+	filepath = oss2.str();   //path of OBJ file in the VS project
+
+	strcat(model_dirO, "/");  //directory path in the VS project
+
+	//check if file exists
+	ifstream fin2(filepath.c_str());
+	if (!fin2.fail()) {
+		fin2.close();
+		printf("correu bem\n");
+	}
+	else
+		printf("Couldn't open file: %s\n", filepath.c_str());
+
+	if (!Import3DFromFile(filepath, &sceneOrange, importerOrange))
+		return;
+	//creation of Mymesh array with VAO Geometry and Material
+	myMeshes3 = createMeshFromAssimp(sceneOrange, model_dirO);
+
+	//myMeshes.insert(myMeshes.end(), myMeshes2.begin(), myMeshes2.end());
+	//numObjects++;
+	printf("tamanho: %d\n", myMeshes3.size());
+
+	printf("tamanho scene : %d\n", sceneOrange->mRootNode->mNumMeshes);
+	
 	// some GL settings
 	//glEnable(GL_DEPTH_TEST);
 	glEnable(GL_CULL_FACE);
