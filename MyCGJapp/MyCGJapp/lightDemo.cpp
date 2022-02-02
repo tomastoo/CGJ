@@ -1750,7 +1750,7 @@ void renderMeshes() {
         
         printf("objId: %d\n", objId);
         if (!bumpmap)
-            glUniform1i(texMode_uniformId, 7);
+            glUniform1i(texMode_uniformId, 8);
         else
             glUniform1i(texMode_uniformId, 6); //bump mapping: normal comes from normalMap
        // glUniform1i(texMode_uniformId, 6);
@@ -1814,10 +1814,12 @@ void renderMeshes() {
     glUniformMatrix3fv(normal_uniformId, 1, GL_FALSE, mNormal3x3);
 
     // Render mesh
+    /*
     if (!bumpmap)
         glUniform1i(texMode_uniformId, 7);
     else
         glUniform1i(texMode_uniformId, 6); //bump mapping: normal comes from normalMap
+        */
     glBindVertexArray(myMeshes[objId].vao);
 
     if (!shader.isProgramValid()) {
