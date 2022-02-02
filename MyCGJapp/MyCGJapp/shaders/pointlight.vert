@@ -5,6 +5,7 @@ uniform mat4 m_viewModel;
 uniform mat3 m_normal;
 uniform mat4 m_Model;   //por causa do cubo para a skybox
 
+uniform int texMode;
 
 // POINT LIGHTS
 uniform vec4 l_pos[6];
@@ -24,6 +25,7 @@ uniform vec4 sl_pos_texture;
 in vec4 position;
 in vec4 normal;    //por causa do gerador de geometria
 in vec4 texCoord;
+in vec4 tangent;
 
 out Data {
 	vec3 normal;
@@ -42,7 +44,9 @@ out vec3 vertex_color;
 
 void main () {
 
+	vec3 t, b, aux2;
 	vec4 pos = m_viewModel * position;
+	vec3 aux[6], lightDir[6];
 
 	DataOut.skyboxTexCoord = vec3(m_Model * position);	//Transformação de modelação do cubo unitário 
 	DataOut.skyboxTexCoord.x = - DataOut.skyboxTexCoord.x; //Texturas mapeadas no interior logo negar a coordenada x
@@ -83,6 +87,29 @@ void main () {
 
 	DataOut.eye = vec3(-pos);
 	DataOut.tex_coord = texCoord.st;
-	gl_Position = m_pvm * position;	
+		
+	
+	for(int i = 0; i < 6; i++){
+		lightDir[i] = vec3(l_pos[i] - pos);
+	}
+	
 
+	if(texMode == 6)  {  //convert eye and light vectors to tangent space
+
+			//Calculate components of TBN basis in eye space
+			t = normalize(m_normal * tangent.xyz);  
+			b = tangent.w * cross(DataOut.normal,t);
+			for(int i = 0; i < 6; i++){
+				aux[i].x = dot(lightDir[i], t);
+				aux[i].y = dot(lightDir[i], b);
+				aux[i].z = dot(lightDir[i], DataOut.normal);
+				DataOut.PointLights[i] = normalize(aux[i]);
+			}
+
+			aux2.x = dot(DataOut.eye, t);
+			aux2.y = dot(DataOut.eye, b);
+			aux2.z = dot(DataOut.eye, DataOut.normal);
+			DataOut.eye = normalize(aux2);
+		}
+	gl_Position = m_pvm * position;
 }

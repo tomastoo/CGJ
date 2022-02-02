@@ -113,6 +113,7 @@ VSShaderLib shaderText;   // render bitmap text
 
 // File with the font
 const string font_name = "fonts/arial.ttf";
+int bumpmap = 1;
 
 // Vector with meshes
 vector<struct MyMesh> myMeshes;
@@ -146,7 +147,7 @@ GLint slCutOffAngleTexture_uniformId;
 GLint is_fog_on_uniformId;
 GLint fog_maxdist_uniformId;
 
-GLint tex_loc, tex_loc1, tex_loc2, tex_loc3, tex_loc4, tex_cube_loc;
+GLint tex_loc, tex_loc1, tex_loc2, tex_loc3, tex_loc4, tex_cube_loc, tex_loc6, tex_loc7;
 GLint texMode_uniformId;
 
 GLuint TextureArray[10];
@@ -1219,6 +1220,12 @@ void renderTextures() {
   glActiveTexture(GL_TEXTURE5);
   glBindTexture(GL_TEXTURE_CUBE_MAP, TextureArray[5]);
 
+  glActiveTexture(GL_TEXTURE5); //normal.tga
+  glBindTexture(GL_TEXTURE_2D, TextureArray[6]);
+
+  glActiveTexture(GL_TEXTURE5); //stone.tga
+  glBindTexture(GL_TEXTURE_2D, TextureArray[7]);
+
   // Indicar aos samplers do GLSL quais os Texture Units a serem usados
   glUniform1i(tex_loc, 0);
   glUniform1i(tex_loc1, 1);
@@ -1226,6 +1233,7 @@ void renderTextures() {
   glUniform1i(tex_loc3, 3);
   glUniform1i(tex_loc4, 4);
   glUniform1i(tex_cube_loc, 5);
+  glUniform1i(tex_loc6, 6);
 }
 
 void renderLights() {
@@ -1496,6 +1504,9 @@ void renderMeshes() {
 
       break;
     case 1:
+        glUniform1i(texMode_uniformId, 7);
+       translate(MODEL, 5.0f, 1.5f, 5.0f);
+       break;
     case 2:
     case 3:
     case 4:
@@ -1733,13 +1744,24 @@ void renderMeshes() {
 
     // Render mesh
     if (objId == 0)
-      glUniform1i(texMode_uniformId, 0);
+        glUniform1i(texMode_uniformId, 0);
+    
+    else if (0 < objId && objId <= 5) {
+        
+        printf("objId: %d\n", objId);
+        if (!bumpmap)
+            glUniform1i(texMode_uniformId, 7);
+        else
+            glUniform1i(texMode_uniformId, 6); //bump mapping: normal comes from normalMap
+       // glUniform1i(texMode_uniformId, 6);
+    }
+    
     else if (objId == 11)
       glUniform1i(texMode_uniformId, 2);
     else if (objId == 12)
       glUniform1i(texMode_uniformId, 4);
     else
-      glUniform1i(texMode_uniformId, 6);
+      glUniform1i(texMode_uniformId, 8);
 
     glBindVertexArray(myMeshes[objId].vao);
 
@@ -1792,7 +1814,10 @@ void renderMeshes() {
     glUniformMatrix3fv(normal_uniformId, 1, GL_FALSE, mNormal3x3);
 
     // Render mesh
-    glUniform1i(texMode_uniformId, 6);
+    if (!bumpmap)
+        glUniform1i(texMode_uniformId, 7);
+    else
+        glUniform1i(texMode_uniformId, 6); //bump mapping: normal comes from normalMap
     glBindVertexArray(myMeshes[objId].vao);
 
     if (!shader.isProgramValid()) {
@@ -1851,6 +1876,7 @@ void renderMeshes() {
 
       // Render mesh
       glUniform1i(texMode_uniformId, 1);
+      
       glBindVertexArray(myMeshes[objId].vao);
 
       if (!shader.isProgramValid()) {
@@ -1907,6 +1933,12 @@ void renderMeshes() {
 
       // Render mesh
       glUniform1i(texMode_uniformId, 1);
+      //printf("bumpmap: %d\n", bumpmap);
+      /*if (!bumpmap)
+          glUniform1i(texMode_uniformId, 7);
+      else
+          glUniform1i(texMode_uniformId, 6); //bump mapping: normal comes from normalMap
+      */
       glBindVertexArray(myMeshes[objId].vao);
 
       if (!shader.isProgramValid()) {
@@ -2193,6 +2225,7 @@ void processKeys(unsigned char key, int xx, int yy) {
   case 27:
     glutLeaveMainLoop();
     break;
+  
   case 'c': // POINTING LIGHTS --> LUZES PARA ILUMINAR A MESA
     // printf("Camera Spherical Coordinates (%f, %f, %f)\n", alpha, beta, r);
     if (isPointLightsOn) {
@@ -2407,7 +2440,11 @@ void keyUp(unsigned char key, int x, int y) {
 
     else if (!game.isGamePaused) {
         switch (key) {
-
+        case 'b':
+            if (bumpmap == 0) bumpmap = 1;
+            else
+                bumpmap = 0;
+            break;
         case 'c': // POINTING LIGHTS --> LUZES PARA ILUMINAR A MESA
           // printf("Camera Spherical Coordinates (%f, %f, %f)\n", alpha, beta, r);
             if (isPointLightsOn) {
@@ -2645,6 +2682,7 @@ void keyUp(unsigned char key, int x, int y) {
     glBindAttribLocation(shader.getProgramIndex(), NORMAL_ATTRIB, "normal");
     glBindAttribLocation(shader.getProgramIndex(), TEXTURE_COORD_ATTRIB,
                          "texCoord");
+    glBindAttribLocation(shader.getProgramIndex(), TANGENT_ATTRIB, "tangent");
 
     glLinkProgram(shader.getProgramIndex());
 
@@ -2669,6 +2707,8 @@ void keyUp(unsigned char key, int x, int y) {
         glGetUniformLocation(shader.getProgramIndex(), "l_pos[4]");
     lPos_uniformId[5] =
         glGetUniformLocation(shader.getProgramIndex(), "l_pos[5]");
+
+
 
     lDir_uniformId = glGetUniformLocation(shader.getProgramIndex(), "l_dir");
 
@@ -2703,6 +2743,8 @@ void keyUp(unsigned char key, int x, int y) {
     tex_loc3 = glGetUniformLocation(shader.getProgramIndex(), "texmap3");
     tex_loc4 = glGetUniformLocation(shader.getProgramIndex(), "texmap4");
     tex_cube_loc = glGetUniformLocation(shader.getProgramIndex(), "cubeMap");
+    tex_loc6 = glGetUniformLocation(shader.getProgramIndex(), "texmap6");
+    tex_loc7 = glGetUniformLocation(shader.getProgramIndex(), "texmap7");
 
     printf("InfoLog for Per Fragment Phong Lightning Shader\n%s\n\n",
            shader.getAllInfoLogs().c_str());
@@ -2777,12 +2819,14 @@ void keyUp(unsigned char key, int x, int y) {
       camZ = r * cos(alpha * 3.14f / 180.0f) * cos(beta * 3.14f / 180.0f);
       camY = r * sin(beta * 3.14f / 180.0f);
 
-      glGenTextures(5, TextureArray);
-      Texture2D_Loader(TextureArray, "lightwood.tga", 0);
-      Texture2D_Loader(TextureArray, "road.jpg", 1);
-      Texture2D_Loader(TextureArray, "finishline.jpg", 2);
-      Texture2D_Loader(TextureArray, "particle.tga", 3);
-      Texture2D_Loader(TextureArray, "tree.tga", 4);
+    glGenTextures(10, TextureArray);
+    Texture2D_Loader(TextureArray, "lightwood.tga", 0);
+    Texture2D_Loader(TextureArray, "road.jpg", 1);
+    Texture2D_Loader(TextureArray, "finishline.jpg", 2);
+    Texture2D_Loader(TextureArray, "particle.tga", 3);
+    Texture2D_Loader(TextureArray, "tree.tga", 4);
+    Texture2D_Loader(TextureArray, "normal.tga", 6);
+    Texture2D_Loader(TextureArray, "stone.tga", 7);
 
       // Flare elements textures
       glGenTextures(5, FlareTextureArray);
@@ -2859,7 +2903,7 @@ void keyUp(unsigned char key, int x, int y) {
       float amb1[] = { 0.3f, 0.0f, 0.0f, 1.0f };
       float diff1[] = { 0.8f, 0.1f, 0.1f, 1.0f };
       float spec1[] = { 0.0f, 0.9f, 0.9f, 1.0f };
-      shininess = 200.0;
+      shininess = 100.0;
 
       float amb2[] = { 1.0f, 0.647f, 0.0f, 1.0f };
       // ORANGE  id = 1 to 5

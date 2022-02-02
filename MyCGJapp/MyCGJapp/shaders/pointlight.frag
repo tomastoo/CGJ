@@ -19,6 +19,8 @@ uniform sampler2D texmap2;
 uniform sampler2D texmap3;
 uniform sampler2D texmap4;
 uniform samplerCube cubeMap;
+uniform sampler2D texmap6;
+uniform sampler2D texmap7;
 
 uniform int texMode;
 
@@ -99,7 +101,15 @@ vec2 calcSpotLight(vec3 lightPos, vec3 n, vec3 e, vec4 sl_direction, float cutOf
 void main() {
 	
 	vec4 texel, texel1;
-	vec3 n = normalize(DataIn.normal);
+	vec3 n;
+	normalize(DataIn.normal);
+
+	
+	if(texMode == 6)  // lookup normal from normal map, move from [0,1] to [-1, 1] range, normalize
+		n = normalize(2.0 * texture(texmap6, DataIn.tex_coord).rgb - 1.0);
+	else
+		n = normalize(DataIn.normal);
+
 	vec3 e = normalize(DataIn.eye);
 	//Directional Light
 	vec2 intensity_spec = calcLight(DataIn.DirectionalLight, n, e);
@@ -170,8 +180,20 @@ void main() {
 		else 
 			colorOut = texel;
 		}
-
-
+	else if (texMode == 6) // modulate diffuse color with texel1 color
+	{
+		if (intensity_spec[0] > 0){
+		texel = texture(texmap7, DataIn.tex_coord);  // texel from stone.tga
+		colorOut = vec4((max(intensity_spec[0]*texel + intensity_spec[1], 0.2*texel)).rgb, 1.0);
+		}
+	}
+	else if (texMode == 7) // modulate diffuse color with texel1 color
+	{
+		if (intensity_spec[0] > 0){
+		texel = texture(texmap7, DataIn.tex_coord);  // texel from stone.tga
+		colorOut = vec4((max(intensity_spec[0]*texel + intensity_spec[1], 0.2*texel)).rgb, 1.0);
+		}
+	}
 	else{
 		if (intensity_spec[0] > 0){
 			colorOut = max(intensity_spec[0]*mat.diffuse + intensity_spec[1], mat.ambient) + vec4(0.1, 0.1, 0.1, 0);
