@@ -23,6 +23,8 @@ uniform sampler2D texmap6;
 uniform sampler2D texmap7;
 
 uniform int texMode;
+uniform bool shadowMode;
+uniform uint diffMapCount;
 
 uniform vec4 sl_dir[2];
 uniform float sl_cut_off_ang;
@@ -97,6 +99,7 @@ vec2 calcSpotLight(vec3 lightPos, vec3 n, vec3 e, vec4 sl_direction, float cutOf
 			return vec2(0,0);
 		}
 }
+vec4 diff;
 
 void main() {
 	
@@ -131,76 +134,100 @@ void main() {
 	}
 
 	// Textures
-	if(texMode == 0) // modulate diffuse color with texel color
-	{
-		if (intensity_spec[0] > 0){
-		texel = texture(texmap, DataIn.tex_coord);  // texel from lightwood.tga
-		colorOut = max(intensity_spec[0]*texel + intensity_spec[1], 0.07*texel) + vec4(0.1, 0.1, 0.1, 0);
-		}
-	}
-	else if (texMode == 1) // modulate diffuse color with texel1 color
-	{
-		if (intensity_spec[0] > 0){
-		texel = texture(texmap1, DataIn.tex_coord);  // texel from road.jpg
-		colorOut = max(intensity_spec[0]*texel + intensity_spec[1], 0.07*texel)+ vec4(0.1, 0.1, 0.1, 0);
-		}
-	}
-	else if (texMode == 2) // modulate diffuse color with texel2 color
-	{
-		if (intensity_spec[0] > 0){
-		texel = texture(texmap2, DataIn.tex_coord);  // texel from finishline.jpg
-		colorOut = max(intensity_spec[0]*texel + intensity_spec[1], 0.07*texel)+ vec4(0.1, 0.1, 0.1, 0);
-		}
-	}
-	else if (texMode == 3) 	// modulated texture for particle (texel3 color)
-	{
-		texel = texture(texmap3, DataIn.tex_coord);    //texel from particle.tga
-
-		if((texel.a == 0.0) || (mat.diffuse.a == 0.0) ) discard;
-
-		else colorOut = mat.diffuse * texel;
-		}
-
-	else if (texMode == 4) 	// modulate color with texel4 color
-	{
-		texel = texture(texmap4, DataIn.tex_coord);    //texel from tree.tga
-
-		if (texel.a == 0.0) discard;
-
-		else 
-			colorOut = vec4(max(intensity_spec[0]*texel.rgb + intensity_spec[1], 0.1*texel.rgb), texel.a);
-		}
-
-	else if (texMode == 5) //SkyBox
-	{
-		texel = texture(cubeMap, DataIn.skyboxTexCoord);
-
-		if (texel.a == 0.0) discard;
-
-		else 
-			colorOut = texel;
-		}
-	else if (texMode == 6) // modulate diffuse color with texel1 color
-	{
-		if (intensity_spec[0] > 0){
-		texel = texture(texmap7, DataIn.tex_coord);  // texel from stone.tga
-		colorOut = vec4((max(intensity_spec[0]*texel + intensity_spec[1], 0.2*texel)).rgb, 1.0);
-		}
-	}
-	else if (texMode == 7) // modulate diffuse color with texel1 color
-	{
-		if (intensity_spec[0] > 0){
-		texel = texture(texmap7, DataIn.tex_coord);  // texel from stone.tga
-		colorOut = vec4((max(intensity_spec[0]*texel + intensity_spec[1], 0.2*texel)).rgb, 1.0);
-		}
-	}
+	if(shadowMode)  //constant color
+		colorOut = vec4(0.5, 0.5, 0.5, 1.0);
 	else{
-		if (intensity_spec[0] > 0){
-			colorOut = max(intensity_spec[0]*mat.diffuse + intensity_spec[1], mat.ambient) + vec4(0.1, 0.1, 0.1, 0);
-		}
-	}
+		//if(mat.texCount == 0){
+		if(0==0){
+			if(texMode == 0) // modulate diffuse color with texel color
+			{
+				if (intensity_spec[0] > 0){
+				texel = texture(texmap, DataIn.tex_coord);  // texel from lightwood.tga
+				colorOut = max(intensity_spec[0]*texel + intensity_spec[1], 0.07*texel) + vec4(0.1, 0.1, 0.1, 0);
+				}
+			}
+			else if (texMode == 1) // modulate diffuse color with texel1 color
+			{
+				if (intensity_spec[0] > 0){
+				texel = texture(texmap1, DataIn.tex_coord);  // texel from road.jpg
+				colorOut = max(intensity_spec[0]*texel + intensity_spec[1], 0.07*texel)+ vec4(0.1, 0.1, 0.1, 0);
+				}
+			}
+			else if (texMode == 2) // modulate diffuse color with texel2 color
+			{
+				if (intensity_spec[0] > 0){
+				texel = texture(texmap2, DataIn.tex_coord);  // texel from finishline.jpg
+				colorOut = max(intensity_spec[0]*texel + intensity_spec[1], 0.07*texel)+ vec4(0.1, 0.1, 0.1, 0);
+				}
+			}
+			else if (texMode == 3) 	// modulated texture for particle (texel3 color)
+			{
+				texel = texture(texmap3, DataIn.tex_coord);    //texel from particle.tga
 
-	if(is_fog_on == 1){
-		colorOut = calcFog(DataIn.eye);
+				if((texel.a == 0.0) || (mat.diffuse.a == 0.0) ) discard;
+
+				else colorOut = mat.diffuse * texel;
+				}
+
+			else if (texMode == 4) 	// modulate color with texel4 color
+			{
+				texel = texture(texmap4, DataIn.tex_coord);    //texel from tree.tga
+
+				if (texel.a == 0.0) discard;
+
+				else 
+					colorOut = vec4(max(intensity_spec[0]*texel.rgb + intensity_spec[1], 0.1*texel.rgb), texel.a);
+				}
+
+			else if (texMode == 5) //SkyBox
+			{
+				texel = texture(cubeMap, DataIn.skyboxTexCoord);
+
+				if (texel.a == 0.0) discard;
+
+				else 
+					colorOut = texel;
+				}
+			else if (texMode == 6) // modulate diffuse color with texel1 color
+			{
+				if (intensity_spec[0] > 0){
+					colorOut = max(intensity_spec[0]*mat.diffuse + intensity_spec[1], mat.ambient);// + vec4(0.1, 0.1, 0.1, 0);
+				}
+			}
+			else if (texMode == 7) // modulate diffuse color with texel1 color
+			{
+				if (intensity_spec[0] > 0){
+				texel = texture(texmap7, DataIn.tex_coord);  // texel from stone.tga
+				colorOut = vec4((max(intensity_spec[0]*texel + intensity_spec[1], 0.2*texel)).rgb, 1.0);
+				}
+			}
+			else{
+				if(diffMapCount == 0){
+			diff = mat.diffuse;
+			if (intensity_spec[0] > 0.0) {
+				colorOut = vec4((max(intensity_spec[0] * diff, diff*0.15) + intensity_spec[1]).rgb, 1.0);
+		
+			}
+			}
+			else{if (intensity_spec[0] > 0){
+					colorOut = max(intensity_spec[0]*mat.diffuse + intensity_spec[1], mat.ambient) + vec4(0.1, 0.1, 0.1, 0);
+				}}
+			}
+
+			if(is_fog_on == 1){
+				colorOut = calcFog(DataIn.eye);
+			}
+		}
+		else{
+			if(diffMapCount == 0)
+			diff = mat.diffuse;
+			if (intensity_spec[0] > 0.0) {
+				colorOut = vec4((max(intensity_spec[0] * diff, diff*0.15) + intensity_spec[1]).rgb, 1.0);
+		
+			}
+			
+		}
+		
 	}
+	
 }

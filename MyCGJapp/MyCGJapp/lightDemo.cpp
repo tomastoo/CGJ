@@ -14,6 +14,7 @@
 #include <iostream>
 #include <math.h>
 #include <sstream>
+#include <fstream>
 #include <string>
 
 // include GLEW to access OpenGL 3.3 functions
@@ -24,6 +25,10 @@
 
 #include <IL/il.h>
 
+// assimp include files. These three are usually needed.
+#include "assimp/Importer.hpp"	//OO version Header!
+#include "assimp/scene.h"
+
 // Use Very Simple Libs
 #include "AVTmathLib.h"
 #include "Texture_Loader.h"
@@ -31,6 +36,9 @@
 #include "VertexAttrDef.h"
 #include "avtFreeType.h"
 #include "geometry.h"
+
+#include "meshFromAssimp.h"
+using namespace std;
 
 #ifdef _WIN32
 #define M_PI 3.14159265358979323846f
@@ -71,6 +79,18 @@ void loadFlareFile(FLARE_DEF *flare, char *filename);
 
 #endif
 
+/* IMPORTANT: Use the next data to make this Assimp demo to work*/
+
+// Created an instance of the Importer class in the meshFromAssimp.cpp file
+Assimp::Importer importer;
+Assimp::Importer importerOrange;
+// the global Assimp scene object
+const aiScene* scene;
+const aiScene* sceneOrange;
+char model_dir[50];  //initialized by the user input at the console
+char model_dirO[50];
+float sphere_ty = 0;
+
 inline double clamp(const double x, const double min, const double max) {
   return (x < min ? min : (x > max ? max : x));
 }
@@ -82,6 +102,7 @@ inline int clampi(const int x, const int min, const int max) {
 static inline float DegToRad(float degrees) {
   return (float)(degrees * (M_PI / 180.0f));
 };
+bool pause = false;
 
 using namespace std;
 
@@ -114,10 +135,18 @@ VSShaderLib shaderText;   // render bitmap text
 // File with the font
 const string font_name = "fonts/arial.ttf";
 int bumpmap = 1;
+int shadow = 1;
+
+GLint normalMap_loc;
+GLint specularMap_loc;
+GLint diffMapCount_loc;
 
 // Vector with meshes
 vector<struct MyMesh> myMeshes;
+vector<struct MyMesh> myMeshes2;
+vector<struct MyMesh> myMeshes3;
 
+bool normalMapKey = TRUE; // by default if there is a normal map then bump effect is implemented. press key "b" to enable/disable normal mapping 
 // External array storage defined in AVTmathLib.cpp
 
 /// The storage for matrices
@@ -148,7 +177,7 @@ GLint is_fog_on_uniformId;
 GLint fog_maxdist_uniformId;
 
 GLint tex_loc, tex_loc1, tex_loc2, tex_loc3, tex_loc4, tex_cube_loc, tex_loc6, tex_loc7;
-GLint texMode_uniformId;
+GLint texMode_uniformId, shadowMode_uniformId;
 
 GLuint TextureArray[10];
 GLuint FlareTextureArray[5];
@@ -287,6 +316,23 @@ int mapRoad[21][21] = {
 // 1, 1, 0, 0, 1, 1, 1, 0}
 //};//10
 
+void timer_fn(int value)
+{
+    static float s = 0;
+
+    if (!pause) {
+
+        if ((s += 2) > 180)
+            s = 0;
+
+        sphere_ty = (float)5 * sin(s * 3.14 / 180);
+
+        
+    }
+    glutPostRedisplay();
+    glutTimerFunc(30, timer_fn, 0);
+}
+
 int mapRows = sizeof(mapRoad) / sizeof(mapRoad[0]);
 int mapCols = sizeof(mapRoad[0]) / sizeof(mapRoad[0][0]);
 int numRoads = 0;
@@ -349,12 +395,12 @@ struct Spotlight {
 
 class Car {
 public:
-  float position[3] = {0.0f, 0.0f, 0.0f};
+  float position[3] = {2.0f, 0.0f, 2.0f};
   float minVelocity = 0.0f;
   float maxVelocity = 0.1f;
   float velocity = 0.0f;
   float direction[4] = {1.0f, 0.0f, 0.0f, 0.0f};
-  float directionAngle = 0;
+  float directionAngle = 90;
   float rotationAngle = 1.5f;
   float isForward = true;
   struct Spotlight *spotlights[2];
@@ -441,10 +487,13 @@ public:
   void reset() {
     direction[0] = 1;
     for (int i = 0; i < 3; i++) {
-      position[i] = 0;
+     // position[i] = 0;
       direction[i + 1] = 0;
     }
-    directionAngle = 0;
+    position[0] = 2.0f;
+    position[1] = 0;
+    position[2] = 2.0f;
+    directionAngle = 90;
     alpha_cam3 = -90.0f;
     beta_cam3 = 0.0f;
     isForward = true;
@@ -657,7 +706,7 @@ public:
 
   void reset(int k, int j) {
     position[0] = roadWidth * j + roadWidth / 2;
-    position[1] = 1.0f;
+    position[1] = 3.0f;
     position[2] = roadWidth * k + roadWidth / 2;
     // randomPosition();
   }
@@ -1461,13 +1510,126 @@ void renderOffGameMessage(int messageCase) {
   popMatrix(VIEW);
 }
 
+void aiRecursive_render(const aiScene* sc, const aiNode* nd, vector<struct MyMesh> myMeshes)
+{
+    GLint loc;
+
+    // Get node transformation matrix
+    aiMatrix4x4 m = nd->mTransformation;
+    // OpenGL matrices are column major
+    m.Transpose();
+
+    // save model matrix and apply node transformation
+    pushMatrix(MODEL);
+
+    float aux[16];
+    memcpy(aux, &m, sizeof(float) * 16);
+    multMatrix(MODEL, aux);
+
+    //printf("size: %d\n", nd->mNumMeshes);
+    // draw all meshes assigned to this node
+    for (unsigned int n = 0; n < nd->mNumMeshes; ++n) {
+
+
+        // send the material
+        loc = glGetUniformLocation(shader.getProgramIndex(), "mat.ambient");
+        glUniform4fv(loc, 1, myMeshes[nd->mMeshes[n]].mat.ambient);
+        loc = glGetUniformLocation(shader.getProgramIndex(), "mat.diffuse");
+        glUniform4fv(loc, 1, myMeshes[nd->mMeshes[n]].mat.diffuse);
+        loc = glGetUniformLocation(shader.getProgramIndex(), "mat.specular");
+        glUniform4fv(loc, 1, myMeshes[nd->mMeshes[n]].mat.specular);
+        loc = glGetUniformLocation(shader.getProgramIndex(), "mat.emissive");
+        glUniform4fv(loc, 1, myMeshes[nd->mMeshes[n]].mat.emissive);
+        loc = glGetUniformLocation(shader.getProgramIndex(), "mat.shininess");
+        glUniform1f(loc, myMeshes[nd->mMeshes[n]].mat.shininess);
+        loc = glGetUniformLocation(shader.getProgramIndex(), "mat.texCount");
+        glUniform1i(loc, myMeshes[nd->mMeshes[n]].mat.texCount);
+
+        unsigned int  diffMapCount = 0;  //read 2 diffuse textures
+
+        //devido ao fragment shader suporta 2 texturas difusas simultaneas, 1 especular e 1 normal map
+
+        glUniform1i(normalMap_loc, false);   //GLSL normalMap variable initialized to 0
+        glUniform1i(specularMap_loc, false);
+        glUniform1ui(diffMapCount_loc, 0);
+
+        if (myMeshes[nd->mMeshes[n]].mat.texCount != 0)
+            //printf("textcount: %d\n", myMeshes[nd->mMeshes[n]].mat.texCount);
+            for (unsigned int i = 0; i < myMeshes[nd->mMeshes[n]].mat.texCount; ++i) {
+                
+                if (myMeshes[nd->mMeshes[n]].texTypes[i] == DIFFUSE) {
+                   // printf("DIFFUSE\n");
+                    if (diffMapCount == 0) {
+                        printf("print 0\n");
+                        diffMapCount++;
+                        loc = glGetUniformLocation(shader.getProgramIndex(), "texUnitDiff");
+                        glUniform1i(loc, myMeshes[nd->mMeshes[n]].texUnits[i]);
+                        glUniform1ui(diffMapCount_loc, diffMapCount);
+                    }
+                    else if (diffMapCount == 1) {
+                        printf("print 1\n");
+                        diffMapCount++;
+                        loc = glGetUniformLocation(shader.getProgramIndex(), "texUnitDiff1");
+                        glUniform1i(loc, myMeshes[nd->mMeshes[n]].texUnits[i]);
+                        glUniform1ui(diffMapCount_loc, diffMapCount);
+                    }
+                    else printf("Only supports a Material with a maximum of 2 diffuse textures\n");
+                }
+                else if (myMeshes[nd->mMeshes[n]].texTypes[i] == SPECULAR) {
+                    printf("SPECULAR\n");
+                    loc = glGetUniformLocation(shader.getProgramIndex(), "texUnitSpec");
+                    glUniform1i(loc, myMeshes[nd->mMeshes[n]].texUnits[i]);
+                    glUniform1i(specularMap_loc, true);
+                }
+                else if (myMeshes[nd->mMeshes[n]].texTypes[i] == NORMALS) { //Normal map
+                    printf("NORMALS\n");
+                    loc = glGetUniformLocation(shader.getProgramIndex(), "texUnitNormalMap");
+                    if (normalMapKey)
+                        glUniform1i(normalMap_loc, normalMapKey);
+                    glUniform1i(loc, myMeshes[nd->mMeshes[n]].texUnits[i]);
+
+                }
+                else printf("Texture Map not supported\n");
+            }
+
+        //scale(MODEL, 4, 2, 4);
+        //translate(MODEL, 30, 2, 30);
+
+        // send matrices to OGL
+        computeDerivedMatrix(PROJ_VIEW_MODEL);
+        glUniformMatrix4fv(vm_uniformId, 1, GL_FALSE, mCompMatrix[VIEW_MODEL]);
+        glUniformMatrix4fv(pvm_uniformId, 1, GL_FALSE, mCompMatrix[PROJ_VIEW_MODEL]);
+        computeNormalMatrix3x3();
+        glUniformMatrix3fv(normal_uniformId, 1, GL_FALSE, mNormal3x3);
+
+        // bind VAO
+        glBindVertexArray(myMeshes[nd->mMeshes[n]].vao);
+
+        if (!shader.isProgramValid()) {
+            printf("Program Not Valid!\n");
+            exit(1);
+        }
+        // draw
+        glDrawElements(myMeshes[nd->mMeshes[n]].type, myMeshes[nd->mMeshes[n]].numIndexes, GL_UNSIGNED_INT, 0);
+        glBindVertexArray(0);
+    }
+
+    // draw all children
+    for (unsigned int n = 0; n < nd->mNumChildren; ++n) {
+        aiRecursive_render(sc, nd->mChildren[n], myMeshes2);
+    }
+    popMatrix(MODEL);
+}
+
 void renderMeshes() {
   GLint loc;
 
   float pos[3];
   float camh[3] = {camX, camY, camZ};
-  int objId = 0; // id of the object mesh - to be used as index of mesh:
+  int objId = 1; // id of the object mesh - to be used as index of mesh:
                  // Mymeshes[objID] means the current mesh
+
+
 
   for (int i = 0; i < numObjects; ++i) {
     //		for (int j = 0; j < 2; ++j) {
@@ -1504,7 +1666,7 @@ void renderMeshes() {
 
       break;
     case 1:
-        glUniform1i(texMode_uniformId, 7);
+        //glUniform1i(texMode_uniformId, 7);
        translate(MODEL, 5.0f, 1.5f, 5.0f);
        break;
     case 2:
@@ -1514,6 +1676,7 @@ void renderMeshes() {
       // orange
       game.orange[objId - 1].renderOrange();
       break;
+      /*
     case 6:
       // car wheel torus RIGHT TOP
       translate(
@@ -1576,12 +1739,12 @@ void renderMeshes() {
       rotate(MODEL, game.car.directionAngle, 0.0f, 1.0f, 0.0f);
       scale(MODEL, carBodyX, 0.5, carBodyZ);
       break;
-
-    case 11:
+      */
+    case 6:
       game.renderFinishLine();
       break;
 
-    case 12:
+    case 7:
 
         glEnable(GL_BLEND);
         glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
@@ -1618,7 +1781,7 @@ void renderMeshes() {
         glDisable(GL_BLEND);
         break;
 
-    case 13:
+    case 8:
 
         glEnable(GL_BLEND);
         glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
@@ -1655,7 +1818,7 @@ void renderMeshes() {
         glDisable(GL_BLEND);
         break;
 
-    case 14:     // TREE WITH BILLBOARDING
+    case 9:     // TREE WITH BILLBOARDING
 
       glEnable(GL_BLEND);
       glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
@@ -1692,7 +1855,7 @@ void renderMeshes() {
       glDisable(GL_BLEND);
       break;
 
-    case 15: // SKYBOX
+    case 10: // SKYBOX
 
       glUniform1i(texMode_uniformId, 5);
 
@@ -1748,7 +1911,7 @@ void renderMeshes() {
     
     else if (0 < objId && objId <= 5) {
         
-        printf("objId: %d\n", objId);
+        //printf("objId: %d\n", objId);
         if (!bumpmap)
             glUniform1i(texMode_uniformId, 8);
         else
@@ -1756,9 +1919,9 @@ void renderMeshes() {
        // glUniform1i(texMode_uniformId, 6);
     }
     
-    else if (objId == 11)
+    else if (objId == 6)
       glUniform1i(texMode_uniformId, 2);
-    else if (objId == 12)
+    else if (objId == 7)
       glUniform1i(texMode_uniformId, 4);
     else
       glUniform1i(texMode_uniformId, 8);
@@ -1914,10 +2077,11 @@ void renderMeshes() {
       glUniform1f(loc, myMeshes[objId].mat.shininess);
       pushMatrix(MODEL);
 
-      //game.car.move();
+      game.car.move();
       float *position = game.car.position;
 
       if (mapRoad[j][k] == 2) {
+          translate(MODEL, 0.0f, sphere_ty, 0.0f);
         translate(MODEL, game.cheerio[iteCheerio].position[0],
                   game.cheerio[iteCheerio].position[1],
                   game.cheerio[iteCheerio].position[2]);
@@ -1936,11 +2100,11 @@ void renderMeshes() {
       // Render mesh
       glUniform1i(texMode_uniformId, 1);
       //printf("bumpmap: %d\n", bumpmap);
-      /*if (!bumpmap)
-          glUniform1i(texMode_uniformId, 7);
+      if (!bumpmap)
+          glUniform1i(texMode_uniformId, 8);
       else
           glUniform1i(texMode_uniformId, 6); //bump mapping: normal comes from normalMap
-      */
+      
       glBindVertexArray(myMeshes[objId].vao);
 
       if (!shader.isProgramValid()) {
@@ -1955,6 +2119,26 @@ void renderMeshes() {
       objId++;
     }
   }
+  
+  
+  
+  //car
+  float* position = game.car.position;
+
+  //rotate(MODEL, 90.0f, 0.0f, 1.0f, 0.0f);
+  //scale(MODEL, 2/3, 2/3, 2/3);
+  translate(MODEL, position[0], position[1] + 1, position[2]);
+  //translate(MODEL, 30.0f, 2.0f, 30.0f);
+  rotate(MODEL, game.car.directionAngle, 0.0f, 1.0f, 0.0f);
+  //pushMatrix(MODEL);
+  aiRecursive_render(scene, scene->mRootNode, myMeshes2);
+
+  //orange
+  //translate(MODEL, 35.0f, 2.0f, 35.0f);
+  //pushMatrix(MODEL);
+  //aiRecursive_render(sceneOrange, sceneOrange->mRootNode, myMeshes3);
+  //popMatrix(MODEL);
+  //popMatrix(MODEL);
 }
 
 void renderPawn() {
@@ -1996,7 +2180,41 @@ void renderPawn() {
 // Render stufff
 //
 
+static void draw_mirror(void) //specular mirror with cube
+{
+    GLint loc;
+    //objId = 3;   
+    loc = glGetUniformLocation(shader.getProgramIndex(), "mat.ambient");
+    glUniform4fv(loc, 1, myMeshes[0].mat.ambient);
+    loc = glGetUniformLocation(shader.getProgramIndex(), "mat.diffuse");
+    glUniform4fv(loc, 1, myMeshes[0].mat.diffuse);
+    loc = glGetUniformLocation(shader.getProgramIndex(), "mat.specular");
+    glUniform4fv(loc, 1, myMeshes[0].mat.specular);
+    loc = glGetUniformLocation(shader.getProgramIndex(), "mat.shininess");
+    glUniform1f(loc, myMeshes[0].mat.shininess);
+    pushMatrix(MODEL);
+    translate(MODEL, 0.0f, 0.0f, 0.0f);
+    scale(MODEL, tableX, tableY, tableZ);
+    computeDerivedMatrix(PROJ_VIEW_MODEL);
+    glUniformMatrix4fv(vm_uniformId, 1, GL_FALSE, mCompMatrix[VIEW_MODEL]);
+    glUniformMatrix4fv(pvm_uniformId, 1, GL_FALSE, mCompMatrix[PROJ_VIEW_MODEL]);
+    computeNormalMatrix3x3();
+    glUniformMatrix3fv(normal_uniformId, 1, GL_FALSE, mNormal3x3);
+
+    glUniform1i(texMode_uniformId, 0);
+    glBindVertexArray(myMeshes[0].vao);
+    glDrawElements(myMeshes[0].type, myMeshes[0].numIndexes, GL_UNSIGNED_INT, 0);
+    glBindVertexArray(0);
+    popMatrix(MODEL);
+}
+
+
+
 void renderScene(void) {
+
+    float res[4];
+    float mat[16];
+    GLfloat plano_chao[4] = { 0,1,0,0 };
 
   GLint loc;
   float particle_color[4];
@@ -2048,8 +2266,77 @@ void renderScene(void) {
   // camRearViewMirror();
 
   // glStencilFunc(GL_NOTEQUAL, 0x1, 0x1);
-  // draw
-  renderMeshes();
+
+    //loucura
+    // 
+  if (shadow) {
+      glEnable(GL_STENCIL_TEST);        // Escrever 1 no stencil buffer onde se for desenhar a reflexão e a sombra
+      glStencilFunc(GL_NEVER, 0x1, 0x1);
+      glStencilOp(GL_REPLACE, GL_REPLACE, GL_REPLACE);
+
+      // Fill stencil buffer with Ground shape; never rendered into color buffer
+      draw_mirror();
+
+      glUniform1i(shadowMode_uniformId, 0);  //iluminação phong
+
+      // Desenhar apenas onde o stencil buffer esta a 1
+      glStencilFunc(GL_EQUAL, 0x1, 0x1);
+      glStencilOp(GL_KEEP, GL_KEEP, GL_KEEP);
+
+      // Render the reflected geometry
+      lightPos[1][1] *= (-1.0f);  //mirror the position of light
+      multMatrixPoint(VIEW, lightPos[1], res);
+
+      glUniform4fv(lPos_uniformId[1], 1, res);
+      pushMatrix(MODEL);
+      scale(MODEL, 1.0f, -1.0f, 1.0f);
+      glCullFace(GL_FRONT);
+      renderMeshes();
+      //draw_objects2();
+      glCullFace(GL_BACK);
+      popMatrix(MODEL);
+
+      lightPos[1][1] *= (-1.0f);  //reset the light position
+      multMatrixPoint(VIEW, lightPos[1], res);
+      glUniform4fv(lPos_uniformId[1], 1, res);
+
+      glEnable(GL_BLEND);
+      glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);		// Blend specular Ground with reflected geometry
+      draw_mirror();
+
+      // Render the Shadows
+      glUniform1i(shadowMode_uniformId, 1);  //Render with constant color
+      shadow_matrix(mat, plano_chao, lightPos[1]);
+
+      glDisable(GL_DEPTH_TEST); //To force the shadow geometry to be rendered even if behind the floor
+
+      //Dark the color stored in color buffer
+      glBlendFunc(GL_DST_COLOR, GL_ZERO);
+      glStencilOp(GL_KEEP, GL_KEEP, GL_ZERO);
+
+      pushMatrix(MODEL);
+      multMatrix(MODEL, mat);
+      renderMeshes();
+      popMatrix(MODEL);
+
+      glDisable(GL_STENCIL_TEST);
+      glDisable(GL_BLEND);
+      glEnable(GL_DEPTH_TEST);
+
+      //render the geometry
+      glUniform1i(shadowMode_uniformId, 0);
+      renderMeshes();
+
+      //fim de lourcura
+  }
+  else {
+      // draw
+    glUniform1i(shadowMode_uniformId, 0);
+    draw_mirror();
+    renderMeshes();
+  }
+   
+ 
 
   // Render text (bitmap fonts) in screen coordinates. So use ortoghonal
   // projection with viewport coordinates.
@@ -2447,6 +2734,11 @@ void keyUp(unsigned char key, int x, int y) {
             else
                 bumpmap = 0;
             break;
+        case 'z':
+            if (shadow == 0) shadow = 1;
+            else
+                shadow = 0;
+            break;
         case 'c': // POINTING LIGHTS --> LUZES PARA ILUMINAR A MESA
           // printf("Camera Spherical Coordinates (%f, %f, %f)\n", alpha, beta, r);
             if (isPointLightsOn) {
@@ -2690,6 +2982,7 @@ void keyUp(unsigned char key, int x, int y) {
 
     texMode_uniformId = glGetUniformLocation(
         shader.getProgramIndex(), "texMode"); // different modes of texturing
+    shadowMode_uniformId = glGetUniformLocation(shader.getProgramIndex(), "shadowMode");
     pvm_uniformId = glGetUniformLocation(shader.getProgramIndex(), "m_pvm");
     vm_uniformId =
         glGetUniformLocation(shader.getProgramIndex(), "m_viewModel");
@@ -2828,7 +3121,7 @@ void keyUp(unsigned char key, int x, int y) {
     Texture2D_Loader(TextureArray, "particle.tga", 3);
     Texture2D_Loader(TextureArray, "tree.tga", 4);
     Texture2D_Loader(TextureArray, "normal.tga", 6);
-    Texture2D_Loader(TextureArray, "stone.tga", 7);
+    Texture2D_Loader(TextureArray, "orange.jpg", 7);
 
       // Flare elements textures
       glGenTextures(5, FlareTextureArray);
@@ -2920,11 +3213,13 @@ void keyUp(unsigned char key, int x, int y) {
           myMeshes.push_back(amesh);
           numObjects++;
       }
-
+      
       // Car
       float amb3[] = { 0.0f, 0.0f, 0.0f, 0.0f };
       float diff2[] = { 0.0f, 0.0f, 0.0f, 1.0f };
       float spec2[] = { 0.9f, 0.9f, 0.9f, 1.0f };
+      float amb4[] = { 0.0f, 1.0f, 0.647f, 0.0f };
+      /*
       for (int i = 0; i < 4; i++) {
           // id = 6 to 9
           amesh = createTorus(0.1f, 0.5f, 20, 20);
@@ -2937,7 +3232,7 @@ void keyUp(unsigned char key, int x, int y) {
           myMeshes.push_back(amesh);
           numObjects++;
       }
-      float amb4[] = { 0.0f, 1.0f, 0.647f, 0.0f };
+      
 
       // id = 10
       amesh = createCube();
@@ -2949,7 +3244,7 @@ void keyUp(unsigned char key, int x, int y) {
       amesh.mat.texCount = texcount;
       myMeshes.push_back(amesh);
       numObjects++;
-
+      */
       // id = 11
       game.createFinishLine();
 
@@ -3023,7 +3318,7 @@ void keyUp(unsigned char key, int x, int y) {
       for (int k = 0; k < mapCols; k++) {
         if (mapRoad[j][k] == 2) {
           game.cheerio[iteCheerio].position[0] = roadWidth * k + roadWidth / 2;
-          game.cheerio[iteCheerio].position[1] = 1.0f;
+          game.cheerio[iteCheerio].position[1] = 3.0f;
           game.cheerio[iteCheerio].position[2] = roadWidth * j + roadWidth / 2;
           iteCheerio++;
         }
@@ -3043,6 +3338,67 @@ void keyUp(unsigned char key, int x, int y) {
     // Load flare from file
     loadFlareFile(&AVTflare, "flare.txt");
 
+    //test assimp
+    std::string filepath;
+
+    strncpy(model_dir, "free_car_001", sizeof(model_dir) - 1);
+    //bj << "backpack";
+    std::ostringstream oss;
+    oss << model_dir << "/" << model_dir << ".obj";
+    filepath = oss.str();   //path of OBJ file in the VS project
+
+    strcat(model_dir, "/");  //directory path in the VS project
+
+    //check if file exists
+    ifstream fin(filepath.c_str());
+    if (!fin.fail()) {
+        fin.close();
+        printf("correu bem\n");
+    }
+    else
+        printf("Couldn't open file: %s\n", filepath.c_str());
+
+    if (!Import3DFromFile(filepath, &scene, importer))
+        return;
+    //creation of Mymesh array with VAO Geometry and Material
+    myMeshes2 = createMeshFromAssimp(scene, model_dir);
+
+    //myMeshes.insert(myMeshes.end(), myMeshes2.begin(), myMeshes2.end());
+    //numObjects++;
+    printf("tamanho: %d\n", myMeshes.size());
+
+    printf("tamanho scene : %d\n", scene->mRootNode->mNumMeshes);
+
+    
+    //oranges
+    strncpy(model_dirO, "Orange", sizeof(model_dirO) - 1);
+    //bj << "backpack";
+    std::ostringstream oss2;
+    oss2 << model_dirO << "/" << model_dirO << ".obj";
+    filepath = oss2.str();   //path of OBJ file in the VS project
+
+    strcat(model_dirO, "/");  //directory path in the VS project
+
+    //check if file exists
+    ifstream fin2(filepath.c_str());
+    if (!fin2.fail()) {
+        fin2.close();
+        printf("correu bem\n");
+    }
+    else
+        printf("Couldn't open file: %s\n", filepath.c_str());
+
+    if (!Import3DFromFile(filepath, &sceneOrange, importerOrange))
+        return;
+    //creation of Mymesh array with VAO Geometry and Material
+    myMeshes3 = createMeshFromAssimp(sceneOrange, model_dirO);
+
+    //myMeshes.insert(myMeshes.end(), myMeshes2.begin(), myMeshes2.end());
+    //numObjects++;
+    printf("tamanho: %d\n", myMeshes3.size());
+
+    printf("tamanho scene : %d\n", sceneOrange->mRootNode->mNumMeshes);
+    
     // some GL settings
     glEnable(GL_DEPTH_TEST);
     glEnable(GL_CULL_FACE);
@@ -3080,6 +3436,7 @@ void keyUp(unsigned char key, int x, int y) {
     glutDisplayFunc(renderScene);
     glutReshapeFunc(changeSize);
 
+    //glutTimerFunc(30, timer_fn, 0);
     glutTimerFunc(0, timer, 0);
     // glutIdleFunc(renderScene);  // Use it for maximum performance
     glutTimerFunc(0, refresh, 0); // use it to to get 60 FPS whatever
